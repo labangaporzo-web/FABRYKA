@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="pl">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Incremental Factory - Canvas Graph & Cache System</title>
+  <title>Incremental Factory</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     * {
@@ -17,10 +17,11 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background-color: #07090e;
+      background-color: #0d0f14;
       color: #e2e8f0;
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
+
     #game-canvas {
       position: absolute;
       top: 0;
@@ -33,203 +34,309 @@
     #game-canvas:active {
       cursor: grabbing;
     }
-    /* Custom HUD stylings matching the screenshot */
-    .hud-panel {
-      background: linear-gradient(180deg, rgba(32, 36, 44, 0.94) 0%, rgba(18, 21, 26, 0.98) 100%);
-      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.8), inset 0 1px 1px rgba(255, 255, 255, 0.12);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+
+    /* Authentic Incremental Factory Modal theme */
+    .if-modal-bg {
+      background-color: #242424;
+      color: #e5e7eb;
     }
-    .hud-btn {
+    .if-search-input {
+      background-color: #383838;
+      border: 1px solid #454545;
+      color: #d1d5db;
+    }
+    .if-search-input:focus {
+      outline: none;
+      border-color: #60a5fa;
+      background-color: #3f3f3f;
+    }
+    .if-btn-action {
+      background: linear-gradient(180deg, #444444 0%, #2b2b2b 100%);
+      border: 1px solid #555555;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.15);
+    }
+    .if-btn-action:hover {
+      background: linear-gradient(180deg, #525252 0%, #363636 100%);
+      border-color: #777777;
+    }
+    .if-btn-action:active {
+      background: #202020;
+    }
+
+    /* Authentic HUD Panel matching screenshot */
+    .if-hud-bar {
+      background: linear-gradient(180deg, rgba(34, 38, 44, 0.95) 0%, rgba(18, 20, 24, 0.98) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+    .if-hud-pill {
       background: linear-gradient(180deg, #374151 0%, #1f2937 100%);
       border: 1px solid #4b5563;
       border-radius: 9999px;
-      transition: all 0.15s ease;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 2px 4px rgba(0,0,0,0.4);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 2px 5px rgba(0,0,0,0.5);
+      transition: all 0.12s ease;
     }
-    .hud-btn:hover {
+    .if-hud-pill:hover {
       background: linear-gradient(180deg, #4b5563 0%, #374151 100%);
       border-color: #60a5fa;
       transform: translateY(-1px);
     }
-    .hud-btn:active {
+    .if-hud-pill:active {
       transform: translateY(1px);
-      box-shadow: inset 0 2px 4px rgba(0,0,0,0.6);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.8);
     }
-    .hud-btn.active {
-      background: linear-gradient(180deg, #0284c7 0%, #0369a1 100%);
-      border-color: #38bdf8;
-      box-shadow: 0 0 12px rgba(56, 189, 248, 0.5);
-    }
-    /* Custom scrollbar */
+
+    /* Custom scrollbars */
     ::-webkit-scrollbar {
       width: 6px;
       height: 6px;
     }
     ::-webkit-scrollbar-thumb {
-      background: #334155;
+      background: #4a4a4a;
       border-radius: 3px;
     }
     ::-webkit-scrollbar-track {
-      background: #0f172a;
+      background: #1e1e1e;
     }
   </style>
 </head>
 <body class="relative w-full h-full">
 
-  <!-- Główny ekran roboczy grafu węzłów -->
+  <!-- Main Canvas for Inter-Parcel Node Graph -->
   <canvas id="game-canvas"></canvas>
 
-  <!-- Górny pasek statusu i wskaźników telemetrycznych -->
+  <!-- Top status & telemetry bar -->
   <div class="absolute top-3 left-4 right-4 flex items-center justify-between pointer-events-none z-10">
-    <div class="flex items-center gap-3 bg-black/70 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 pointer-events-auto">
+    <div class="flex items-center gap-3 bg-black/75 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 pointer-events-auto">
       <div class="flex items-center gap-2">
         <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
         <span class="font-bold tracking-wider text-xs uppercase text-sky-400">Incremental Factory</span>
-        <span class="text-xs text-slate-400 font-mono">v1.2 (Sub-Factory Cache Engine)</span>
+        <span class="text-[11px] text-slate-400 font-mono">Parcel System v2.0</span>
       </div>
       <div class="h-4 w-px bg-white/10"></div>
-      <div id="stats-nodes" class="text-xs text-slate-300 font-mono">Węzły: 0 (Cachowane: 0)</div>
+      <div id="top-parcels-stat" class="text-xs text-slate-300 font-mono">Parcels: 0 (Cached: 0)</div>
       <div class="h-4 w-px bg-white/10"></div>
-      <div id="stats-power" class="text-xs text-amber-300 font-mono">⚡ 0/0 MW</div>
+      <div id="top-power-stat" class="text-xs text-amber-300 font-mono">⚡ 0/0 MW</div>
       <div class="h-4 w-px bg-white/10"></div>
-      <div id="stats-fps" class="text-xs text-emerald-300 font-mono">60 FPS</div>
+      <div id="top-science-stat" class="text-xs text-cyan-300 font-mono">🧪 0 SP</div>
     </div>
 
     <div class="flex items-center gap-2 pointer-events-auto">
-      <button id="btn-sound" class="bg-black/70 hover:bg-slate-800 text-xs px-3 py-2 rounded-lg border border-white/10 text-slate-300 transition-colors">
-        🔊 Dźwięk: WŁ
+      <button id="btn-sound-toggle" class="bg-black/75 hover:bg-slate-800 text-xs px-3 py-2 rounded-lg border border-white/10 text-slate-300 transition-colors">
+        🔊 Sound: ON
       </button>
-      <button id="btn-reset-view" class="bg-black/70 hover:bg-slate-800 text-xs px-3 py-2 rounded-lg border border-white/10 text-slate-300 transition-colors">
-        🎯 Wyśrodkuj kamerę
+      <button id="btn-center-cam" class="bg-black/75 hover:bg-slate-800 text-xs px-3 py-2 rounded-lg border border-white/10 text-slate-300 transition-colors">
+        🎯 Recenter
       </button>
     </div>
   </div>
 
-  <!-- Boczny panel zasobów globalnych / magazynu -->
-  <div id="warehouse-drawer" class="absolute top-16 left-4 w-64 bg-black/80 backdrop-blur-md border border-white/10 rounded-xl p-3 z-10 hidden flex flex-col gap-2 max-h-[70vh] overflow-y-auto">
-    <div class="flex justify-between items-center border-b border-white/10 pb-2">
-      <span class="text-xs font-bold uppercase tracking-wider text-sky-400">Magazyn Główny</span>
-      <button onclick="toggleWarehouseDrawer()" class="text-slate-400 hover:text-white text-sm">✕</button>
-    </div>
-    <div id="warehouse-items" class="flex flex-col gap-1.5 text-xs font-mono">
-      <!-- Generowane dynamicznie -->
-    </div>
-  </div>
-
-  <!-- DOLNY PANEL HUD (Wzorowany 1:1 na układzie z gry z dolnym zaokrąglonym paskiem) -->
+  <!-- BOTTOM HUD PANEL (Exact match to screenshot 1) -->
   <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 pointer-events-auto">
-    <div class="hud-panel flex items-center gap-2 px-4 py-2 rounded-full shadow-2xl">
-      <!-- Przyciski kategorii -->
-      <button onclick="selectCategory('extraction')" id="cat-extraction" class="hud-btn px-4 py-1.5 text-xs font-medium text-slate-200">
-        Extraction(<span id="count-ext">0</span>)
+    <div class="if-hud-bar flex items-center gap-2 px-4 py-2 rounded-full">
+      <button onclick="spawnParcel('extraction')" class="if-hud-pill px-4 py-1.5 text-xs font-medium text-slate-200">
+        Extraction(<span id="hud-count-ext">0</span>)
       </button>
-      <button onclick="selectCategory('production')" id="cat-production" class="hud-btn px-4 py-1.5 text-xs font-medium text-slate-200">
-        Production(<span id="count-prod">0</span>)
+      <button onclick="spawnParcel('production')" class="if-hud-pill px-4 py-1.5 text-xs font-medium text-slate-200">
+        Production(<span id="hud-count-prod">0</span>)
       </button>
-      <button onclick="selectCategory('logistics')" id="cat-logistics" class="hud-btn px-4 py-1.5 text-xs font-medium text-slate-200">
-        Node(<span id="count-nodes">0</span>)
+      <button onclick="spawnParcel('node')" class="if-hud-pill px-4 py-1.5 text-xs font-medium text-slate-200">
+        Node(<span id="hud-count-nodes">0</span>)
       </button>
-      <button onclick="toggleWarehouseDrawer()" id="cat-warehouse" class="hud-btn px-4 py-1.5 text-xs font-medium text-slate-200">
-        Warehouse(<span id="count-wh">0</span>)
+      <button onclick="spawnParcel('warehouse')" class="if-hud-pill px-4 py-1.5 text-xs font-medium text-slate-200">
+        Warehouse(<span id="hud-count-wh">0</span>)
       </button>
 
       <div class="h-5 w-px bg-white/20 mx-1"></div>
 
-      <!-- SPECJALNY PRZYCISK: KREATOR CACHE / BLACKBOX -->
-      <button onclick="activateCacheTool()" id="btn-cache-tool" class="hud-btn px-4 py-1.5 text-xs font-semibold text-amber-300 border-amber-500/50 hover:border-amber-400">
+      <!-- SUB-FACTORY CACHE TOOL -->
+      <button onclick="activateCacheSelectionTool()" id="btn-cache-tool" class="if-hud-pill px-4 py-1.5 text-xs font-semibold text-amber-300 border-amber-500/50 hover:border-amber-400">
         📦 Cache Sub-Factory
       </button>
 
-      <!-- Zapis w chmurze / Gist -->
-      <button onclick="openCloudModal()" class="hud-btn px-3 py-1.5 text-xs font-medium text-cyan-300 border-cyan-500/40">
+      <!-- GITHUB / CLOUD SAVE -->
+      <button onclick="openCloudModal()" class="if-hud-pill px-3 py-1.5 text-xs font-medium text-cyan-300 border-cyan-500/40">
         ☁️ GitHub Save
       </button>
     </div>
   </div>
 
-  <!-- Pływające menu wyboru jednostki do postawienia (po kliknięciu kategorii) -->
-  <div id="build-palette" class="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-slate-900/95 backdrop-blur-md border border-slate-700 rounded-2xl p-3 shadow-2xl z-20 hidden flex gap-3">
-    <!-- Generowane dynamicznie w zależności od kategorii -->
+  <!-- AUTHENTIC PARCEL MODAL (Exact match to user screenshot 2) -->
+  <div id="parcel-modal" class="fixed inset-0 bg-black/75 backdrop-blur-[2px] z-50 hidden flex items-center justify-center p-4">
+    <div class="if-modal-bg w-full max-w-5xl h-[85vh] rounded-none md:rounded-sm border border-[#3a3a3a] shadow-2xl flex flex-col overflow-hidden relative text-[#cfcfcf]">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between px-6 pt-5 pb-3">
+        <div class="flex items-center gap-3">
+          <h2 id="pm-title" class="text-xl font-bold text-white tracking-wide">Production-1</h2>
+          <button onclick="renameParcelPrompt()" title="Rename Parcel" class="text-slate-400 hover:text-white p-1">
+            ✏️
+          </button>
+          <button onclick="changeColorPrompt()" title="Change Color" class="text-slate-400 hover:text-white p-1">
+            🎨
+          </button>
+          <span id="pm-subtitle" class="text-xs text-[#8f8f8f] font-normal ml-2">Production Parcel</span>
+        </div>
+        <button onclick="closeParcelModal()" class="text-[#888888] hover:text-white text-2xl leading-none px-2 font-light">
+          ✕
+        </button>
+      </div>
+
+      <!-- Main Body: Two Columns (Left = Resources, Right = Building Slots & Catalog) -->
+      <div class="flex-1 flex overflow-hidden px-6 py-2 gap-8">
+        
+        <!-- Left Side: Resources Inventory and I/O Rates -->
+        <div class="w-1/2 flex flex-col overflow-hidden border-r border-[#333333] pr-6">
+          <div class="grid grid-cols-4 text-xs font-semibold text-[#8e8e8e] pb-2 border-b border-[#3a3a3a]">
+            <div>Resource</div>
+            <div class="text-right">Qty</div>
+            <div class="text-right">Rate (max)</div>
+            <div class="text-right">Output</div>
+          </div>
+          
+          <div id="pm-resource-list" class="flex-1 overflow-y-auto divide-y divide-[#2c2c2c] text-xs">
+            <!-- Dynamically populated rows -->
+          </div>
+        </div>
+
+        <!-- Right Side: Metrics, Search and Building Slots -->
+        <div class="w-1/2 flex flex-col overflow-hidden pl-2">
+          <!-- Top Telemetry details -->
+          <div class="text-xs space-y-1 text-[#b5b5b5] mb-3 font-mono">
+            <div>Storage: <span id="pm-storage-val" class="text-white font-semibold">1,250</span></div>
+            <div>Connections: <span id="pm-connections-val" class="text-white font-semibold">0 / 8</span></div>
+            <div>
+              Building Slots: <span id="pm-slots-val" class="text-white font-bold">0 / 32</span>
+              <span id="pm-slots-extra" class="text-[#888888] ml-2">32 Free → + 5.3 Extra Connections</span>
+            </div>
+          </div>
+
+          <!-- Controls: Smart Sort & Utilization Bar -->
+          <div class="flex items-center gap-6 text-xs text-[#a0a0a0] mb-3">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <span>Smart Sort</span>
+              <input type="checkbox" id="chk-smart-sort" class="accent-sky-500 rounded bg-[#333]">
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <span>Utilization Bar</span>
+              <input type="checkbox" id="chk-utilization" checked class="accent-sky-500 rounded bg-[#333]">
+            </label>
+          </div>
+
+          <!-- Search buildings input -->
+          <div class="mb-3">
+            <input type="text" id="pm-search" placeholder="Search buildings..." oninput="filterBuildingList()" 
+              class="if-search-input w-full px-3 py-1.5 text-xs rounded-sm">
+          </div>
+
+          <!-- Building Table Header -->
+          <div class="grid grid-cols-12 text-xs font-semibold text-[#8e8e8e] pb-2 border-b border-[#3a3a3a]">
+            <div class="col-span-2">Action</div>
+            <div class="col-span-2 text-center">Qty</div>
+            <div class="col-span-8">Building</div>
+          </div>
+
+          <!-- Building List -->
+          <div id="pm-building-list" class="flex-1 overflow-y-auto divide-y divide-[#2c2c2c] text-xs">
+            <!-- Buildings dynamically rendered here -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Footer: Delete Parcel Button & Parcel ID -->
+      <div class="flex items-center justify-between px-6 py-3 border-t border-[#333333] bg-[#202020]">
+        <div class="flex items-center gap-3">
+          <button onclick="deleteCurrentParcel()" class="flex items-center gap-1.5 px-3 py-1.5 bg-[#d60000] hover:bg-[#b00000] text-white text-xs font-semibold rounded-sm shadow-md transition-colors">
+            <span>🗑</span> Delete Parcel
+          </button>
+          <button id="pm-btn-freeze" onclick="toggleParcelFreeze()" class="flex items-center gap-1.5 px-3 py-1.5 bg-[#4f46e5] hover:bg-[#4338ca] text-white text-xs font-semibold rounded-sm shadow-md transition-colors">
+            <span>📦</span> Cache This Parcel (O(1))
+          </button>
+        </div>
+        <div id="pm-parcel-id" class="text-[11px] font-mono text-[#555555]">parcel-489</div>
+      </div>
+
+    </div>
   </div>
 
-  <!-- Modal tworzenia Cache / Kompresji podsieci -->
-  <div id="modal-cache" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-amber-500/50 rounded-2xl p-6 max-w-lg w-full shadow-2xl shadow-amber-950/40">
-      <div class="flex items-center gap-3 text-amber-400 mb-3">
+  <!-- CACHE SUB-FACTORY CREATION MODAL -->
+  <div id="modal-cache-builder" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="if-modal-bg border border-amber-500/50 rounded-lg p-6 max-w-lg w-full shadow-2xl">
+      <div class="flex items-center gap-3 text-amber-400 mb-2">
         <span class="text-2xl">📦</span>
-        <h3 class="text-lg font-bold">Kompilacja Podsieci do CACHE (Blackbox)</h3>
+        <h3 class="text-base font-bold uppercase tracking-wider">Sub-Factory Cache Engine</h3>
       </div>
       <p class="text-xs text-slate-300 leading-relaxed mb-4">
-        Zamienia zaznaczone węzły i kable w pojedynczy, skompresowany węzeł o stałym bilansie I/O.
-        Wewnętrzna złożoność grafu zostaje zredukowana do jednej stałej operacji <b>O(1)</b> na tick, eliminując spadki FPS.
+        Freezes selected parcels into a single consolidated Blackbox node. All internal loops and slot simulations are compiled to a static vector at <b>O(1)</b> performance per tick.
       </p>
 
-      <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 mb-4 text-xs font-mono space-y-2">
-        <div class="text-slate-400">Węzłów do kompresji: <span id="cache-selected-count" class="text-white font-bold">0</span></div>
-        <div class="text-red-400">Wymagane zasoby netto (Input): <span id="cache-net-in" class="text-white">-</span></div>
-        <div class="text-emerald-400">Produkcja netto (Output): <span id="cache-net-out" class="text-white">-</span></div>
-        <div class="text-amber-400">Zapotrzebowanie na energię: <span id="cache-net-power" class="text-white">0 MW</span></div>
+      <div class="bg-black/40 p-3 rounded border border-white/10 mb-4 text-xs font-mono space-y-2">
+        <div class="text-slate-400">Selected Parcels: <span id="cache-count" class="text-white font-bold">0</span></div>
+        <div class="text-red-400">Net Input required: <span id="cache-inputs" class="text-white">-</span></div>
+        <div class="text-emerald-400">Net Output produced: <span id="cache-outputs" class="text-white">-</span></div>
+        <div class="text-amber-400">Net Power: <span id="cache-power" class="text-white">0 MW</span></div>
       </div>
 
       <div class="mb-4">
-        <label class="block text-xs font-medium text-slate-300 mb-1">Nazwa modułu Cache</label>
-        <input id="cache-custom-name" type="text" value="Moduł Mikroprocesorów T1" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-400">
+        <label class="block text-xs text-slate-300 mb-1">Module Name</label>
+        <input id="cache-mod-name" type="text" value="Microchip Sub-Factory T1" class="if-search-input w-full px-3 py-2 text-xs rounded">
       </div>
 
       <div class="flex justify-end gap-2">
-        <button onclick="closeCacheModal()" class="px-4 py-2 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300">Anuluj</button>
-        <button onclick="commitCacheCluster()" class="px-4 py-2 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-colors">Utwórz Cache Node</button>
+        <button onclick="closeCacheBuilder()" class="px-4 py-1.5 text-xs bg-[#333] hover:bg-[#444] text-slate-300 rounded">Cancel</button>
+        <button onclick="commitSubFactoryCache()" class="px-4 py-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-400 text-black rounded">Compile Cache Node</button>
       </div>
     </div>
   </div>
 
-  <!-- Modal Chmury / GitHub Save / Import / Export -->
+  <!-- CLOUD SAVE / GITHUB GIST MODAL -->
   <div id="modal-cloud" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-sky-500/40 rounded-2xl p-6 max-w-lg w-full shadow-2xl">
-      <div class="flex items-center gap-3 text-sky-400 mb-3">
+    <div class="if-modal-bg border border-sky-500/40 rounded-lg p-6 max-w-lg w-full shadow-2xl">
+      <div class="flex items-center gap-3 text-sky-400 mb-2">
         <span class="text-2xl">☁️</span>
-        <h3 class="text-lg font-bold">Zapis w Chmurze / GitHub Gist</h3>
+        <h3 class="text-base font-bold uppercase tracking-wider">GitHub Gist Cloud Sync</h3>
       </div>
       <p class="text-xs text-slate-400 mb-4 leading-relaxed">
-        Synchronizuj postęp fabryki z prywatnym GitHub Gist lub eksportuj kod zapisu JSON.
+        Save or load your entire factory graph and parcel states to a private GitHub Gist or copy the raw JSON.
       </p>
 
       <div class="space-y-3 text-xs mb-4">
         <div>
-          <label class="block text-slate-300 mb-1">GitHub Personal Access Token (PAT z uprawnieniem 'gist')</label>
-          <input id="gh-token" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white">
+          <label class="block text-slate-300 mb-1">GitHub Personal Access Token (PAT with 'gist' scope)</label>
+          <input id="gh-token" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" class="if-search-input w-full px-3 py-2 rounded">
         </div>
         <div>
-          <label class="block text-slate-300 mb-1">Gist ID (pozostaw puste aby utworzyć nowy)</label>
-          <input id="gh-gist-id" type="text" placeholder="e.g. 7f8c9b0e123456..." class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white">
+          <label class="block text-slate-300 mb-1">Gist ID (leave empty to create a new Gist)</label>
+          <input id="gh-gist-id" type="text" placeholder="e.g. 7f8c9b0e123456..." class="if-search-input w-full px-3 py-2 rounded">
         </div>
       </div>
 
-      <div class="flex flex-wrap gap-2 justify-between border-t border-slate-800 pt-4">
+      <div class="flex flex-wrap gap-2 justify-between border-t border-[#333] pt-4">
         <div class="flex gap-2">
-          <button onclick="exportSaveJSON()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-mono">📋 Kopiuj JSON</button>
-          <button onclick="importSavePrompt()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-mono">📥 Wklej JSON</button>
+          <button onclick="copySaveJSON()" class="px-3 py-1.5 bg-[#333] hover:bg-[#444] rounded text-xs font-mono">📋 Copy JSON</button>
+          <button onclick="importSaveJSONPrompt()" class="px-3 py-1.5 bg-[#333] hover:bg-[#444] rounded text-xs font-mono">📥 Paste JSON</button>
         </div>
         <div class="flex gap-2">
-          <button onclick="closeCloudModal()" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-xs">Zamknij</button>
-          <button onclick="loadFromGistCloud()" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-bold">Pobierz z Gist</button>
-          <button onclick="saveToGistCloud()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold">Wyślij do Gist</button>
+          <button onclick="closeCloudModal()" class="px-3 py-1.5 bg-[#333] text-slate-300 rounded text-xs">Close</button>
+          <button onclick="loadFromGistCloud()" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded text-xs font-bold">Load Gist</button>
+          <button onclick="saveToGistCloud()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-bold">Save to Gist</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Dymek informacyjny / Notyfikacje HUD -->
-  <div id="toast" class="fixed top-14 left-1/2 transform -translate-x-1/2 bg-sky-500/90 text-slate-950 font-bold px-4 py-2 rounded-full text-xs shadow-lg transition-opacity duration-300 opacity-0 pointer-events-none z-50">
-    Powiadomienie
+  <!-- Notification Toast -->
+  <div id="toast" class="fixed top-14 left-1/2 transform -translate-x-1/2 bg-sky-500 text-slate-950 font-bold px-4 py-2 rounded-full text-xs shadow-xl transition-opacity duration-300 opacity-0 pointer-events-none z-50">
+    Notification
   </div>
 
   <script>
-    // --- SYSTEM DŹWIĘKOWY SYNTEZY (Web Audio API - bez zewnętrznych plików) ---
+    // --- SYNTHESIZER SOUND ENGINE (Tone Web Audio API) ---
     let audioCtx = null;
     let soundEnabled = true;
 
-    function playTone(freq, type = 'sine', duration = 0.08, vol = 0.1) {
+    function playAudio(freq, type = 'sine', duration = 0.08, vol = 0.08) {
       if (!soundEnabled) return;
       try {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -244,195 +351,194 @@
         gain.connect(audioCtx.destination);
         osc.start();
         osc.stop(audioCtx.currentTime + duration);
-      } catch (e) {
-        // Ignoruj blokady autoplay przeglądarek
-      }
+      } catch (e) {}
     }
 
-    document.getElementById('btn-sound').addEventListener('click', () => {
+    document.getElementById('btn-sound-toggle').addEventListener('click', () => {
       soundEnabled = !soundEnabled;
-      document.getElementById('btn-sound').innerText = `🔊 Dźwięk: ${soundEnabled ? 'WŁ' : 'WYŁ'}`;
+      document.getElementById('btn-sound-toggle').innerText = `🔊 Sound: ${soundEnabled ? 'ON' : 'OFF'}`;
     });
 
     function showToast(msg, duration = 2500) {
-      const toast = document.getElementById('toast');
-      toast.innerText = msg;
-      toast.style.opacity = '1';
-      setTimeout(() => { toast.style.opacity = '0'; }, duration);
+      const t = document.getElementById('toast');
+      t.innerText = msg;
+      t.style.opacity = '1';
+      setTimeout(() => { t.style.opacity = '0'; }, duration);
     }
 
-    // --- DEFINICJA PRZEPISÓW, WĘZŁÓW I ZASOBÓW ---
+    // --- GAME DATA: RESOURCES & BUILDINGS DEFINITION ---
     const RESOURCES = {
-      iron_ore: { name: 'Ruda Żelaza', color: '#ea580c' },
-      copper_ore: { name: 'Ruda Miedzi', color: '#d97706' },
-      coal: { name: 'Węgiel', color: '#475569' },
-      silicon: { name: 'Krzem', color: '#38bdf8' },
-      iron_plate: { name: 'Sztaba Żelaza', color: '#94a3b8' },
-      copper_wire: { name: 'Drut Miedziany', color: '#fb923c' },
-      microchip: { name: 'Mikroukład T1', color: '#10b981' },
-      processor: { name: 'Zaawansowany Procesor', color: '#a855f7' }
+      iron_ore: { name: 'Iron Ore', icon: '🪨', color: '#c2410c' },
+      copper_ore: { name: 'Copper Ore', icon: '🪨', color: '#b45309' },
+      coal: { name: 'Coal', icon: '⚫', color: '#334155' },
+      stone: { name: 'Stone', icon: '🧱', color: '#78716c' },
+      iron_plate: { name: 'Iron Ingot', icon: '🪙', color: '#94a3b8' },
+      copper_plate: { name: 'Copper Ingot', icon: '🪙', color: '#fb923c' },
+      cable: { name: 'Copper Cable', icon: '〰️', color: '#f59e0b' },
+      gear: { name: 'Iron Gear', icon: '⚙️', color: '#cbd5e1' },
+      steel: { name: 'Steel Plate', icon: '🛡️', color: '#64748b' },
+      red_science: { name: 'Red Science Pack', icon: '🧪', color: '#ef4444' },
+      green_science: { name: 'Green Science Pack', icon: '🧪', color: '#22c55e' }
     };
 
-    const NODE_TEMPLATES = {
-      // EXTRACTION
-      miner_iron: {
-        category: 'extraction',
-        name: 'Kopalnia Żelaza',
-        color: '#c2410c', // pomarańczowo-rdzawy
-        inputs: [],
-        outputs: ['iron_ore'],
-        rate: 2.0, // 2 items / sec
-        power: -2, // pobór 2 MW
-        cost: 10,
-        shape: 'pill'
-      },
-      miner_copper: {
-        category: 'extraction',
-        name: 'Kopalnia Miedzi',
-        color: '#b45309', // miedziany
-        inputs: [],
-        outputs: ['copper_ore'],
-        rate: 2.0,
+    // Authentic building catalog matching user's screenshot
+    const BUILDINGS = {
+      kiln: {
+        name: 'Kiln',
+        icon: '🏺',
+        category: 'production',
+        in: { stone: 2 },
+        out: { iron_plate: 1 },
         power: -2,
-        cost: 10,
-        shape: 'pill'
-      },
-      miner_coal: {
-        category: 'extraction',
-        name: 'Kopalnia Węgla',
-        color: '#334155',
-        inputs: [],
-        outputs: ['coal'],
-        rate: 1.5,
-        power: -1,
-        cost: 15,
-        shape: 'pill'
-      },
-      // PRODUCTION
-      smelter_iron: {
-        category: 'production',
-        name: 'Piec Hutniczy Żelaza',
-        color: '#0284c7', // błękitno-cyanowy jak w grze
-        inputs: ['iron_ore'],
-        outputs: ['iron_plate'],
         rate: 1.0,
-        power: -5,
-        cost: 25,
-        shape: 'rect'
+        desc: 'Smelts basic stone into rough ingots.'
       },
-      wire_assembler: {
+      iron_smelter: {
+        name: 'Iron Smelter',
+        icon: '🏭',
         category: 'production',
-        name: 'Wytłaczarka Kabli',
-        color: '#7c3aed', // fiolet
-        inputs: ['copper_ore'],
-        outputs: ['copper_wire'],
-        rate: 1.5,
+        in: { iron_ore: 2 },
+        out: { iron_plate: 2 },
         power: -4,
-        cost: 30,
-        shape: 'rect'
+        rate: 1.5,
+        desc: 'Smelts raw iron ore into pure iron ingots.'
       },
-      chip_fabricator: {
+      copper_smelter: {
+        name: 'Copper Smelter',
+        icon: '🏭',
         category: 'production',
-        name: 'Montownia Układów T1',
-        color: '#059669', // zielony
-        inputs: ['iron_plate', 'copper_wire'],
-        outputs: ['microchip'],
+        in: { copper_ore: 2 },
+        out: { copper_plate: 2 },
+        power: -4,
+        rate: 1.5,
+        desc: 'Smelts raw copper ore into copper ingots.'
+      },
+      iron_miner: {
+        name: 'Iron Miner',
+        icon: '⛏️',
+        category: 'extraction',
+        in: {},
+        out: { iron_ore: 3 },
+        power: -2,
+        rate: 2.0,
+        desc: 'Extracts Iron Ore directly from subterranean veins.'
+      },
+      stone_miner: {
+        name: 'Stone Miner',
+        icon: '⛏️',
+        category: 'extraction',
+        in: {},
+        out: { stone: 3 },
+        power: -2,
+        rate: 2.0,
+        desc: 'Excavates raw quarry stone.'
+      },
+      coal_miner: {
+        name: 'Coal Miner',
+        icon: '⛏️',
+        category: 'extraction',
+        in: {},
+        out: { coal: 3 },
+        power: -2,
+        rate: 2.0,
+        desc: 'Mines combustible coal deposits.'
+      },
+      copper_miner: {
+        name: 'Copper Miner',
+        icon: '⛏️',
+        category: 'extraction',
+        in: {},
+        out: { copper_ore: 3 },
+        power: -2,
+        rate: 2.0,
+        desc: 'Extracts rich copper mineral veins.'
+      },
+      coal_power_plant: {
+        name: 'Coal Power Plant',
+        icon: '⚡',
+        category: 'power',
+        in: { coal: 1 },
+        out: {},
+        power: 45, // Generates 45 MW
+        rate: 0.5,
+        desc: 'Combusts coal to produce steady electrical energy.'
+      },
+      gear_press: {
+        name: 'Gear Press',
+        icon: '⚙️',
+        category: 'production',
+        in: { iron_plate: 2 },
+        out: { gear: 1 },
+        power: -5,
+        rate: 1.0,
+        desc: 'Stamps structural iron gears for advanced machinery.'
+      },
+      cable_extruder: {
+        name: 'Cable Extruder',
+        icon: '🧶',
+        category: 'production',
+        in: { copper_plate: 1 },
+        out: { cable: 2 },
+        power: -3,
+        rate: 2.0,
+        desc: 'Extrudes conductive copper cable lines.'
+      },
+      steel_mill: {
+        name: 'Steel Mill',
+        icon: '🏭',
+        category: 'production',
+        in: { iron_plate: 4, coal: 2 },
+        out: { steel: 1 },
+        power: -12,
         rate: 0.8,
+        desc: 'High-temperature furnace that refines iron into steel.'
+      },
+      red_science_lab: {
+        name: 'Red Science Laboratory',
+        icon: '🧪',
+        category: 'science',
+        in: { iron_plate: 2, gear: 1 },
+        out: { red_science: 1 },
         power: -8,
-        cost: 60,
-        shape: 'rect'
+        rate: 0.5,
+        desc: 'Conducts automation research using gears and iron.'
       },
-      processor_core: {
-        category: 'production',
-        name: 'Węzeł Obliczeniowy',
-        color: '#e11d48', // amarantowy
-        inputs: ['microchip', 'copper_wire'],
-        outputs: ['processor'],
-        rate: 0.4,
+      green_science_lab: {
+        name: 'Green Science Laboratory',
+        icon: '🧪',
+        category: 'science',
+        in: { cable: 2, steel: 1 },
+        out: { green_science: 1 },
         power: -15,
-        cost: 120,
-        shape: 'rect'
-      },
-      power_plant: {
-        category: 'production',
-        name: 'Elektrownia Węglowa',
-        color: '#eab308', // żółty
-        inputs: ['coal'],
-        outputs: [],
-        rate: 0.5, // spala 0.5 węgla/s
-        power: 45, // generuje 45 MW
-        cost: 50,
-        shape: 'rect'
-      },
-      // LOGISTICS & ROUTING
-      splitter: {
-        category: 'logistics',
-        name: 'Rozdzielacz 1:2',
-        color: '#1e293b',
-        inputs: ['*'],
-        outputs: ['*', '*'],
-        rate: 10,
-        power: 0,
-        cost: 5,
-        shape: 'small_circle'
-      },
-      merger: {
-        category: 'logistics',
-        name: 'Łącznik Przesyłowy',
-        color: '#1e293b',
-        inputs: ['*', '*'],
-        outputs: ['*'],
-        rate: 10,
-        power: 0,
-        cost: 5,
-        shape: 'small_circle'
-      },
-      terminal_sink: {
-        category: 'logistics',
-        name: 'Terminal Magazynowy',
-        color: '#475569',
-        inputs: ['*'],
-        outputs: [],
-        rate: 20,
-        power: 0,
-        cost: 10,
-        shape: 'terminal'
+        rate: 0.3,
+        desc: 'Advanced tier logistical research laboratory.'
       }
     };
 
-    // --- STAN GRY I STRUKTURA GRAFU ---
+    // --- GAME STATE & PARCELS GRAPH ---
     let camera = {
-      x: window.innerWidth / 2 - 250,
-      y: window.innerHeight / 2 - 200,
+      x: window.innerWidth / 2 - 320,
+      y: window.innerHeight / 2 - 240,
       zoom: 1.0,
       isPanning: false,
       startX: 0,
       startY: 0
     };
 
-    let globalStorage = {
-      iron_ore: 0,
-      copper_ore: 0,
-      coal: 0,
-      silicon: 0,
-      iron_plate: 150, // zasób startowy
-      copper_wire: 120,
-      microchip: 30,
-      processor: 0
-    };
-
-    let nodes = [];
+    let parcels = [];
     let wires = [];
-    let particles = []; // Wizualne impulsy/pakiety na kablach
+    let particles = [];
 
-    // Narzędzia i tryby interakcji
-    let activeTool = 'select'; // 'select', 'place', 'wire', 'cache_select'
-    let selectedTemplateKey = null;
-    let selectedNodeIds = new Set();
-    let wiringSource = null; // { nodeId, portIndex, isOutput, x, y }
+    let activeTool = 'select'; // 'select', 'cache_select'
+    let selectedParcelIds = new Set();
+    let currentOpenParcel = null;
+    let wiringSource = null; // { parcelId, portIdx, isOutput, currentX, currentY }
     let marquee = { active: false, startX: 0, startY: 0, currentX: 0, currentY: 0 };
-    let draggedNode = null;
+    let draggedParcel = null;
     let dragOffset = { x: 0, y: 0 };
+
+    let globalResearchPoints = 0;
+    let parcelCounter = 100;
 
     const canvas = document.getElementById('game-canvas');
     const ctx = canvas.getContext('2d');
@@ -446,7 +552,6 @@
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
-    // Transformacje współrzędnych ekran <-> świat wirtualny
     function screenToWorld(sx, sy) {
       return {
         x: (sx - camera.x) / camera.zoom,
@@ -461,469 +566,288 @@
       };
     }
 
-    function initializeStarterFactory() {
-      // Konstrukcja fabryki demonstracyjnej z układem przypominającym zrzut ekranu
-      nodes = [
-        // Lewa gałąź: Kopalnie rudy
-        createNodeInstance('miner_iron', -300, -100),
-        createNodeInstance('miner_iron', -300, -40),
-        createNodeInstance('miner_iron', -300, 20),
-        createNodeInstance('miner_copper', -300, 90),
-        createNodeInstance('miner_copper', -300, 150),
-        createNodeInstance('miner_coal', -300, 220),
-
-        // Piece i hutnictwo
-        createNodeInstance('smelter_iron', -140, -80),
-        createNodeInstance('smelter_iron', -140, 0),
-        createNodeInstance('wire_assembler', -140, 100),
-        createNodeInstance('power_plant', -140, 210),
-
-        // Montownia mikroprocesorów
-        createNodeInstance('chip_fabricator', 60, 0),
-
-        // Zaawansowany procesor
-        createNodeInstance('processor_core', 240, 40),
-
-        // Terminal końcowy
-        createNodeInstance('terminal_sink', 420, 40)
-      ];
-
-      // Połączenia przewodowe (Bezier)
-      connectNodes(nodes[0].id, 0, nodes[6].id, 0); // ruda -> piec
-      connectNodes(nodes[1].id, 0, nodes[6].id, 0);
-      connectNodes(nodes[2].id, 0, nodes[7].id, 0);
-      connectNodes(nodes[3].id, 0, nodes[8].id, 0); // miedź -> kable
-      connectNodes(nodes[4].id, 0, nodes[8].id, 0);
-      connectNodes(nodes[5].id, 0, nodes[9].id, 0); // węgiel -> elektrownia
-
-      connectNodes(nodes[6].id, 0, nodes[10].id, 0); // płyty żelazne -> montownia ukł
-      connectNodes(nodes[8].id, 0, nodes[10].id, 1); // drut -> montownia ukł
-
-      connectNodes(nodes[10].id, 0, nodes[11].id, 0); // scalak -> procesor
-      connectNodes(nodes[8].id, 0, nodes[11].id, 1); // drut -> procesor
-      connectNodes(nodes[11].id, 0, nodes[12].id, 0); // wyjście do terminala
-
-      updateCountsHUD();
-      showToast("Fabryka załadowana. Zaznacz obszar węzłów aby przetestować CACHE!");
-    }
-
-    function createNodeInstance(templateKey, x, y, customCacheData = null) {
-      if (templateKey === 'cached_blackbox') {
-        return {
-          id: 'node_' + Math.random().toString(36).substr(2, 9),
-          templateKey: 'cached_blackbox',
-          name: customCacheData.name,
-          x, y,
-          width: 80,
-          height: 60,
-          color: '#8b5cf6', // Purpurowy bloczek jak w grze
-          shape: 'rect',
-          isCache: true,
-          cacheData: customCacheData,
-          inputs: customCacheData.inputPortList,
-          outputs: customCacheData.outputPortList,
-          bufferIn: {},
-          bufferOut: {},
-          lastActive: 1.0
-        };
-      }
-
-      const t = NODE_TEMPLATES[templateKey];
-      let width = 42;
-      let height = 36;
-      if (t.shape === 'pill') { width = 46; height = 28; }
-      if (t.shape === 'small_circle') { width = 24; height = 24; }
-      if (t.shape === 'terminal') { width = 34; height = 50; }
+    // Create a new Parcel object
+    function createParcelInstance(type, x, y, customName = null, customCache = null) {
+      parcelCounter++;
+      const id = 'parcel-' + parcelCounter;
+      let name = customName || (type.charAt(0).toUpperCase() + type.slice(1) + '-' + (parcels.length + 1));
+      
+      let baseSlots = 32;
+      let color = '#0284c7'; // Production default blue
+      if (type === 'extraction') color = '#c2410c';
+      if (type === 'node') { color = '#475569'; baseSlots = 8; }
+      if (type === 'warehouse') { color = '#7c3aed'; baseSlots = 16; }
 
       return {
-        id: 'node_' + Math.random().toString(36).substr(2, 9),
-        templateKey,
-        name: t.name,
+        id,
+        type, // 'production', 'extraction', 'node', 'warehouse', 'cache_block'
+        name,
         x, y,
-        width,
-        height,
-        color: t.color,
-        shape: t.shape,
-        isCache: false,
-        inputs: [...t.inputs],
-        outputs: [...t.outputs],
-        bufferIn: {},
-        bufferOut: {},
-        lastActive: 1.0
+        width: 80,
+        height: 54,
+        color,
+        storageCapacity: 1250,
+        totalSlots: baseSlots,
+        buildings: {}, // { buildingKey: count }
+        resources: {}, // { resourceKey: qty }
+        rates: {},     // { resourceKey: currentNetPerSec }
+        outputWhitelist: {}, // { resourceKey: boolean }
+        isCached: !!customCache,
+        cacheData: customCache || null,
+        portsIn: 4,
+        portsOut: 4
       };
     }
 
-    function connectNodes(fromNodeId, fromPortIdx, toNodeId, toPortIdx) {
-      // Sprawdź duplikaty
-      const exists = wires.some(w => w.fromNode === fromNodeId && w.fromPort === fromPortIdx && w.toNode === toNodeId && w.toPort === toPortIdx);
+    function initializeStarterGame() {
+      // Create initial Parcels matching typical Incremental Factory layout
+      const pExt = createParcelInstance('extraction', -320, -100, "Extraction-1");
+      pExt.buildings['iron_miner'] = 4;
+      pExt.buildings['coal_miner'] = 2;
+      pExt.buildings['copper_miner'] = 3;
+
+      const pProd = createParcelInstance('production', -100, -80, "Production-1");
+      pProd.buildings['iron_smelter'] = 4;
+      pProd.buildings['coal_power_plant'] = 1;
+      pProd.buildings['gear_press'] = 2;
+
+      const pWire = createParcelInstance('production', -100, 100, "Production-2");
+      pWire.buildings['copper_smelter'] = 2;
+      pWire.buildings['cable_extruder'] = 3;
+
+      const pScience = createParcelInstance('production', 140, -40, "Research-1");
+      pScience.buildings['red_science_lab'] = 2;
+
+      const pWarehouse = createParcelInstance('warehouse', 360, -40, "Warehouse-1");
+
+      parcels = [pExt, pProd, pWire, pScience, pWarehouse];
+
+      // Connect wires between parcels
+      connectParcels(pExt.id, 0, pProd.id, 0); // Iron ore & coal to smelters
+      connectParcels(pExt.id, 1, pWire.id, 0); // Copper ore to cable line
+      connectParcels(pProd.id, 0, pScience.id, 0); // Iron plates & gears to science
+      connectParcels(pWire.id, 0, pScience.id, 1); // Cables to science
+      connectParcels(pScience.id, 0, pWarehouse.id, 0); // Science to warehouse
+
+      updateHudCounts();
+    }
+
+    function connectParcels(fromId, fromPort, toId, toPort) {
+      if (fromId === toId) return;
+      const exists = wires.some(w => w.fromId === fromId && w.fromPort === fromPort && w.toId === toId && w.toPort === toPort);
       if (exists) return;
-
-      const fromNode = nodes.find(n => n.id === fromNodeId);
-      const toNode = nodes.find(n => n.id === toNodeId);
-      if (!fromNode || !toNode) return;
-
-      // Dobierz kolor kabla
-      let cableColor = '#22c55e'; // default limonka
-      const outType = fromNode.outputs[fromPortIdx];
-      if (outType === 'iron_ore' || outType === 'iron_plate') cableColor = '#f97316'; // pomarańcz
-      if (outType === 'copper_ore' || outType === 'copper_wire') cableColor = '#06b6d4'; // cyan
-      if (outType === 'microchip' || outType === 'processor') cableColor = '#a855f7'; // fiolet
 
       wires.push({
         id: 'wire_' + Math.random().toString(36).substr(2, 9),
-        fromNode: fromNodeId,
-        fromPort: fromPortIdx,
-        toNode: toNodeId,
-        toPort: toPortIdx,
-        color: cableColor
+        fromId,
+        fromPort,
+        toId,
+        toPort,
+        color: '#22c55e'
       });
-      playTone(600, 'triangle', 0.05, 0.08);
+      playAudio(540, 'triangle', 0.05, 0.07);
     }
 
-    function getPortWorldPosition(node, isOutput, portIdx) {
-      if (isOutput) {
-        const total = node.outputs.length;
-        const spacing = node.height / (total + 1);
-        return {
-          x: node.x + node.width,
-          y: node.y + spacing * (portIdx + 1)
-        };
-      } else {
-        const total = node.inputs.length;
-        const spacing = node.height / (total + 1);
-        return {
-          x: node.x,
-          y: node.y + spacing * (portIdx + 1)
-        };
-      }
+    function getParcelPortPosition(parcel, isOutput, portIdx) {
+      const count = isOutput ? parcel.portsOut : parcel.portsIn;
+      const spacing = parcel.height / (count + 1);
+      return {
+        x: isOutput ? parcel.x + parcel.width : parcel.x,
+        y: parcel.y + spacing * (portIdx + 1)
+      };
     }
 
-    // --- PĘTLA SYMULACJI FABRYKI (10 TICKÓW NA SEKUNDĘ) ---
+    // --- MAIN TICK SIMULATION ENGINE (10 Ticks/sec) ---
     const TICK_INTERVAL = 100; // ms
-    let lastTickTime = performance.now();
-    let statsTotalPowerProd = 0;
-    let statsTotalPowerCons = 0;
+    let lastTick = performance.now();
+    let totalGeneratedPower = 0;
+    let totalConsumedPower = 0;
 
-    function gameTick() {
-      const dt = 0.1; // 1/10 sekundy
+    function simulationTick() {
+      const dt = 0.1; // 1/10th of a second
       let powerProduced = 0;
-      let powerConsumed = 0;
+      let powerDemanded = 0;
 
-      // Bilans energetyczny
-      for (let n of nodes) {
-        if (n.isCache) {
-          if (n.cacheData.power < 0) powerConsumed += Math.abs(n.cacheData.power);
-          else powerProduced += n.cacheData.power;
-        } else {
-          const t = NODE_TEMPLATES[n.templateKey];
-          if (t.power < 0) powerConsumed += Math.abs(t.power);
-          else powerProduced += t.power;
+      // 1. Calculate overall grid power balance
+      parcels.forEach(p => {
+        if (p.isCached && p.cacheData) {
+          if (p.cacheData.power < 0) powerDemanded += Math.abs(p.cacheData.power);
+          else powerProduced += p.cacheData.power;
+          return;
         }
-      }
 
-      statsTotalPowerProd = powerProduced;
-      statsTotalPowerCons = powerConsumed;
-      const powerRatio = powerConsumed === 0 ? 1 : Math.min(1.0, powerProduced / powerConsumed);
+        for (let bKey in p.buildings) {
+          const count = p.buildings[bKey];
+          const b = BUILDINGS[bKey];
+          if (!b || count <= 0) continue;
+          if (b.power > 0) powerProduced += b.power * count;
+          else powerDemanded += Math.abs(b.power) * count;
+        }
+      });
 
-      document.getElementById('stats-power').innerText = `⚡ ${powerConsumed.toFixed(0)}/${powerProduced.toFixed(0)} MW (${(powerRatio * 100).toFixed(0)}%)`;
+      totalGeneratedPower = powerProduced;
+      totalConsumedPower = powerDemanded;
+      const powerRatio = powerDemanded === 0 ? 1.0 : Math.min(1.0, powerProduced / powerDemanded);
 
-      // 1. Ekstrakcja / Produkcja dla zwykłych węzłów
-      for (let n of nodes) {
-        if (n.isCache) {
-          // OBRÓBKA CACHE (Złożoność O(1))
+      document.getElementById('top-power-stat').innerText = `⚡ ${powerDemanded.toFixed(0)}/${powerProduced.toFixed(0)} MW (${(powerRatio * 100).toFixed(0)}%)`;
+      document.getElementById('top-science-stat').innerText = `🧪 ${Math.floor(globalResearchPoints)} SP`;
+
+      // 2. Simulate individual Parcels
+      parcels.forEach(p => {
+        let delta = {};
+        for (let k in RESOURCES) delta[k] = 0;
+
+        if (p.isCached && p.cacheData) {
+          // O(1) Vector calculation
+          let factor = powerRatio;
+          for (let inRes in p.cacheData.netInputs) {
+            const need = p.cacheData.netInputs[inRes] * dt * powerRatio;
+            const have = p.resources[inRes] || 0;
+            if (have < need) factor = Math.min(factor, have / Math.max(0.001, need));
+          }
+
+          if (factor > 0.05) {
+            for (let inRes in p.cacheData.netInputs) {
+              const consumed = p.cacheData.netInputs[inRes] * dt * factor;
+              p.resources[inRes] = Math.max(0, (p.resources[inRes] || 0) - consumed);
+              delta[inRes] -= consumed / dt;
+            }
+            for (let outRes in p.cacheData.netOutputs) {
+              const made = p.cacheData.netOutputs[outRes] * dt * factor;
+              p.resources[outRes] = Math.min(p.storageCapacity, (p.resources[outRes] || 0) + made);
+              delta[outRes] += made / dt;
+            }
+          }
+          p.rates = delta;
+          return;
+        }
+
+        // Standard Parcel slot simulation
+        for (let bKey in p.buildings) {
+          const count = p.buildings[bKey];
+          const b = BUILDINGS[bKey];
+          if (!b || count <= 0) continue;
+
+          if (b.category === 'power') {
+            // Power generation consumes fuel
+            const neededFuel = b.rate * count * dt;
+            if ((p.resources['coal'] || 0) >= neededFuel) {
+              p.resources['coal'] -= neededFuel;
+              delta['coal'] -= neededFuel / dt;
+            }
+            continue;
+          }
+
+          // Check ingredient availability
+          let canRun = true;
           let runFactor = powerRatio;
-          // Sprawdź czy węzeł posiada surowce wejściowe
-          for (let reqRes in n.cacheData.netInputs) {
-            const needed = n.cacheData.netInputs[reqRes] * dt * powerRatio;
-            const current = n.bufferIn[reqRes] || 0;
-            if (current < needed) {
-              runFactor = Math.min(runFactor, current / Math.max(0.001, needed));
+
+          for (let inRes in b.in) {
+            const need = b.in[inRes] * b.rate * count * dt;
+            const have = p.resources[inRes] || 0;
+            if (have < need) {
+              runFactor = Math.min(runFactor, have / Math.max(0.001, need));
             }
           }
 
           if (runFactor > 0.05) {
-            // Skonsumuj wejście z bufora
-            for (let reqRes in n.cacheData.netInputs) {
-              const consumed = n.cacheData.netInputs[reqRes] * dt * runFactor;
-              n.bufferIn[reqRes] = Math.max(0, (n.bufferIn[reqRes] || 0) - consumed);
+            // Consume
+            for (let inRes in b.in) {
+              const used = b.in[inRes] * b.rate * count * dt * runFactor;
+              p.resources[inRes] = Math.max(0, (p.resources[inRes] || 0) - used);
+              delta[inRes] -= used / dt;
             }
-            // Wygeneruj wyjście do bufora wyjściowego
-            for (let outRes in n.cacheData.netOutputs) {
-              const produced = n.cacheData.netOutputs[outRes] * dt * runFactor;
-              n.bufferOut[outRes] = (n.bufferOut[outRes] || 0) + produced;
-            }
-          }
-          n.lastActive = runFactor;
-          continue;
-        }
-
-        const t = NODE_TEMPLATES[n.templateKey];
-        if (t.category === 'extraction') {
-          // Kopalnie wytwarzają zasób wprost do portu wyjściowego
-          const res = t.outputs[0];
-          const amount = t.rate * dt * powerRatio;
-          n.bufferOut[res] = (n.bufferOut[res] || 0) + amount;
-          n.lastActive = powerRatio;
-        } else if (t.category === 'production') {
-          if (n.templateKey === 'power_plant') {
-            // Zużywa węgiel z wejścia
-            const coalNeeded = t.rate * dt;
-            if ((n.bufferIn['coal'] || 0) >= coalNeeded) {
-              n.bufferIn['coal'] -= coalNeeded;
-              n.lastActive = 1.0;
-            } else {
-              n.lastActive = 0.0;
-            }
-          } else {
-            // Standardowa fabryka: sprawdź wejścia
-            let canCraft = true;
-            for (let inType of t.inputs) {
-              if ((n.bufferIn[inType] || 0) < t.rate * dt) {
-                canCraft = false;
-                break;
+            // Produce
+            for (let outRes in b.out) {
+              const made = b.out[outRes] * b.rate * count * dt * runFactor;
+              const current = p.resources[outRes] || 0;
+              if (current < p.storageCapacity) {
+                p.resources[outRes] = Math.min(p.storageCapacity, current + made);
+                delta[outRes] += made / dt;
               }
-            }
-            if (canCraft && powerRatio > 0.1) {
-              for (let inType of t.inputs) {
-                n.bufferIn[inType] -= t.rate * dt;
-              }
-              const outType = t.outputs[0];
-              n.bufferOut[outType] = (n.bufferOut[outType] || 0) + t.rate * dt;
-              n.lastActive = 1.0;
-            } else {
-              n.lastActive = 0.0;
-            }
-          }
-        } else if (t.category === 'logistics' && n.templateKey === 'terminal_sink') {
-          // Pobiera wszystko z bufora do głównego magazynu
-          for (let k in n.bufferIn) {
-            const count = n.bufferIn[k];
-            if (count > 0) {
-              globalStorage[k] = (globalStorage[k] || 0) + count;
-              n.bufferIn[k] = 0;
+
+              // If science pack produced, tally into global research
+              if (outRes === 'red_science') globalResearchPoints += made * 0.5;
+              if (outRes === 'green_science') globalResearchPoints += made * 1.5;
             }
           }
         }
-      }
 
-      // 2. Transfer przez kable (wires)
-      for (let w of wires) {
-        const fromNode = nodes.find(n => n.id === w.fromNode);
-        const toNode = nodes.find(n => n.id === w.toNode);
-        if (!fromNode || !toNode) continue;
-
-        let resType = fromNode.outputs[w.fromPort];
-        if (resType === '*') {
-          // Pobierz dowolny dostępny zasób
-          const keys = Object.keys(fromNode.bufferOut);
-          resType = keys.length > 0 ? keys[0] : null;
-        }
-        if (!resType) continue;
-
-        const avail = fromNode.bufferOut[resType] || 0;
-        if (avail > 0.05) {
-          const transferAmt = Math.min(avail, 0.4);
-          fromNode.bufferOut[resType] -= transferAmt;
-          toNode.bufferIn[resType] = (toNode.bufferIn[resType] || 0) + transferAmt;
-
-          // Dodaj animowaną cząstkę na kablu
-          if (Math.random() < 0.35) {
-            particles.push({
-              wireId: w.id,
-              progress: 0,
-              speed: 0.035 + Math.random() * 0.02,
-              color: w.color
-            });
-          }
-        }
-      }
-
-      updateWarehouseView();
-    }
-    setInterval(gameTick, TICK_INTERVAL);
-
-    // --- MECHANIZM CACHE / BLACKBOX (SUB-FACTORY ENGINE) ---
-    function activateCacheTool() {
-      activeTool = 'cache_select';
-      selectedNodeIds.clear();
-      showToast("ZAZNACZ OBSZAR WĘZŁÓW: Przytrzymaj lewy przycisk myszy, aby zaznaczyć sieć do Cache.");
-    }
-
-    function analyzeSelectedNodesForCache() {
-      if (selectedNodeIds.size < 2) {
-        showToast("Zaznacz co najmniej 2 węzły, aby utworzyć Cache.");
-        activeTool = 'select';
-        return;
-      }
-
-      const clusterNodes = nodes.filter(n => selectedNodeIds.has(n.id));
-      let totalPower = 0;
-      let internalInputs = {};
-      let internalOutputs = {};
-
-      // Sumaryczna produkcja i konsumpcja
-      clusterNodes.forEach(n => {
-        if (n.isCache) {
-          totalPower += n.cacheData.power;
-          for (let k in n.cacheData.netInputs) internalInputs[k] = (internalInputs[k] || 0) + n.cacheData.netInputs[k];
-          for (let k in n.cacheData.netOutputs) internalOutputs[k] = (internalOutputs[k] || 0) + n.cacheData.netOutputs[k];
-        } else {
-          const t = NODE_TEMPLATES[n.templateKey];
-          totalPower += t.power;
-          if (t.category === 'extraction') {
-            const outRes = t.outputs[0];
-            internalOutputs[outRes] = (internalOutputs[outRes] || 0) + t.rate;
-          } else if (t.category === 'production') {
-            t.inputs.forEach(r => { internalInputs[r] = (internalInputs[r] || 0) + t.rate; });
-            if (t.outputs.length > 0) {
-              const outRes = t.outputs[0];
-              internalOutputs[outRes] = (internalOutputs[outRes] || 0) + t.rate;
-            }
-          }
-        }
+        p.rates = delta;
       });
 
-      // Bilans netto: Anuluj wewnętrzną konsumpcję (np. ruda wydobywana wewnątrz i zużywana na miejscu)
-      let netInputs = { ...internalInputs };
-      let netOutputs = { ...internalOutputs };
-
-      for (let res in netOutputs) {
-        if (netInputs[res]) {
-          const canceled = Math.min(netOutputs[res], netInputs[res]);
-          netOutputs[res] -= canceled;
-          netInputs[res] -= canceled;
-          if (netOutputs[res] <= 0.001) delete netOutputs[res];
-          if (netInputs[res] <= 0.001) delete netInputs[res];
-        }
-      }
-
-      // Przygotuj modal
-      document.getElementById('cache-selected-count').innerText = `${clusterNodes.length} węzłów`;
-      document.getElementById('cache-net-in').innerText = Object.entries(netInputs).map(([k,v]) => `${v.toFixed(1)}/s ${RESOURCES[k]?.name || k}`).join(', ') || 'Brak (samowystarczalny)';
-      document.getElementById('cache-net-out').innerText = Object.entries(netOutputs).map(([k,v]) => `+${v.toFixed(1)}/s ${RESOURCES[k]?.name || k}`).join(', ') || 'Brak (czysty konsument)';
-      document.getElementById('cache-net-power').innerText = `${totalPower} MW`;
-
-      // Zachowaj tymczasowe dane kompilacji w pamięci podręcznej
-      window.tempCacheData = {
-        clusterNodes,
-        netInputs,
-        netOutputs,
-        power: totalPower,
-        inputPortList: Object.keys(netInputs),
-        outputPortList: Object.keys(netOutputs)
-      };
-
-      document.getElementById('modal-cache').classList.remove('hidden');
-    }
-
-    function closeCacheModal() {
-      document.getElementById('modal-cache').classList.add('hidden');
-      activeTool = 'select';
-      window.tempCacheData = null;
-    }
-
-    function commitCacheCluster() {
-      if (!window.tempCacheData) return;
-      const data = window.tempCacheData;
-      const customName = document.getElementById('cache-custom-name').value || "Skompresowany Moduł Cache";
-
-      // Wylicz średnią pozycję węzłów
-      let avgX = 0, avgY = 0;
-      data.clusterNodes.forEach(n => { avgX += n.x; avgY += n.y; });
-      avgX /= data.clusterNodes.length;
-      avgY /= data.clusterNodes.length;
-
-      const clusterNodeIds = new Set(data.clusterNodes.map(n => n.id));
-
-      // 1. Zachowaj zewnętrzne połączenia
-      const externalWiresToReconnect = [];
+      // 3. Transport along connection wires between Parcels
       wires.forEach(w => {
-        const fromInCluster = clusterNodeIds.has(w.fromNode);
-        const toInCluster = clusterNodeIds.has(w.toNode);
+        const pFrom = parcels.find(p => p.id === w.fromId);
+        const pTo = parcels.find(p => p.id === w.toId);
+        if (!pFrom || !pTo) return;
 
-        if (!fromInCluster && toInCluster) {
-          // Połączenie wchodzące do klastra z zewnątrz
-          externalWiresToReconnect.push({ type: 'in', wire: w });
-        } else if (fromInCluster && !toInCluster) {
-          // Połączenie wychodzące z klastra na zewnątrz
-          externalWiresToReconnect.push({ type: 'out', wire: w });
-        }
-      });
+        // Find available resources eligible for output
+        for (let rKey in pFrom.resources) {
+          const qty = pFrom.resources[rKey];
+          if (qty > 1) {
+            // If output whitelist is set, enforce it
+            if (pFrom.outputWhitelist && pFrom.outputWhitelist[rKey] === false) continue;
 
-      // 2. Usuń wewnętrzne węzły i połączone z nimi kable
-      nodes = nodes.filter(n => !clusterNodeIds.has(n.id));
-      wires = wires.filter(w => !clusterNodeIds.has(w.fromNode) && !clusterNodeIds.has(w.toNode));
+            const space = pTo.storageCapacity - (pTo.resources[rKey] || 0);
+            if (space > 1) {
+              const transfer = Math.min(qty, 2.5); // max 25 items/sec per wire
+              pFrom.resources[rKey] -= transfer;
+              pTo.resources[rKey] = (pTo.resources[rKey] || 0) + transfer;
 
-      // 3. Stwórz nowy Węzeł Cache (Blackbox)
-      const cachedNode = createNodeInstance('cached_blackbox', avgX, avgY, {
-        name: customName,
-        netInputs: data.netInputs,
-        netOutputs: data.netOutputs,
-        power: data.power,
-        inputPortList: data.inputPortList,
-        outputPortList: data.outputPortList,
-        originalCount: data.clusterNodes.length
-      });
-      nodes.push(cachedNode);
-
-      // 4. Przepnij kable zewnętrzne do nowego Cache Node'a
-      externalWiresToReconnect.forEach(item => {
-        if (item.type === 'in') {
-          // Znajdź indeks portu odpowiadający surowcowi
-          const fromNode = nodes.find(n => n.id === item.wire.fromNode);
-          if (fromNode) {
-            const res = fromNode.outputs[item.wire.fromPort];
-            const inIdx = cachedNode.inputs.indexOf(res);
-            if (inIdx !== -1) {
-              connectNodes(fromNode.id, item.wire.fromPort, cachedNode.id, inIdx);
+              // Spawn animated particle pulse
+              if (Math.random() < 0.3) {
+                particles.push({
+                  wireId: w.id,
+                  progress: 0,
+                  speed: 0.04 + Math.random() * 0.02,
+                  color: RESOURCES[rKey]?.color || '#ffffff'
+                });
+              }
+              break;
             }
           }
-        } else if (item.type === 'out') {
-          const toNode = nodes.find(n => n.id === item.wire.toNode);
-          if (toNode) {
-            const outIdx = 0; // Pierwsze dopasowane wyjście
-            connectNodes(cachedNode.id, outIdx, toNode.id, item.wire.toPort);
-          }
         }
       });
 
-      playTone(440, 'sine', 0.2, 0.2);
-      setTimeout(() => playTone(880, 'triangle', 0.3, 0.15), 100);
-
-      closeCacheModal();
-      selectedNodeIds.clear();
-      updateCountsHUD();
-      showToast(`Utworzono Cache '${customName}'! Zastąpiono ${data.clusterNodes.length} węzłów pojedynczym O(1).`);
+      // Refresh opened modal view if open
+      if (currentOpenParcel) {
+        updateOpenParcelModal();
+      }
     }
+    setInterval(simulationTick, TICK_INTERVAL);
 
-    // --- GŁÓWNY RENDERER CANVAS 2D ---
-    function render() {
+    // --- CANVAS GRAPH RENDERING (2D) ---
+    function renderCanvas() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       ctx.save();
       ctx.translate(camera.x, camera.y);
       ctx.scale(camera.zoom, camera.zoom);
 
-      // 1. Siatka tła (subtelne punkty / grid)
+      // Background dot grid
       drawGrid();
 
-      // 2. Kable przesyłowe (Wires) z krzywymi Beziera
+      // Curved Bezier connection wires
       drawWires();
 
-      // 3. Pakiety i cząstki przepływu surowców na kablach
+      // Flowing resource packet particles
       drawParticles();
 
-      // 4. Kable w trakcie przeciągania
+      // Wire currently being drawn by dragging from a port
       if (wiringSource) {
         const mouseWorld = screenToWorld(wiringSource.currentX, wiringSource.currentY);
-        const p1 = getPortWorldPosition(nodes.find(n => n.id === wiringSource.nodeId), wiringSource.isOutput, wiringSource.portIndex);
-        drawBezierCable(p1.x, p1.y, mouseWorld.x, mouseWorld.y, '#38bdf8', true);
+        const fromP = parcels.find(p => p.id === wiringSource.parcelId);
+        if (fromP) {
+          const p1 = getParcelPortPosition(fromP, wiringSource.isOutput, wiringSource.portIdx);
+          drawBezierWire(p1.x, p1.y, mouseWorld.x, mouseWorld.y, '#38bdf8', true);
+        }
       }
 
-      // 5. Węzły (Nodes)
-      drawNodes();
+      // Parcels
+      drawParcels();
 
-      // 6. Obszar zaznaczenia (Marquee)
+      // Selection marquee
       if (marquee.active) {
         const p1 = screenToWorld(marquee.startX, marquee.startY);
         const p2 = screenToWorld(marquee.currentX, marquee.currentY);
@@ -932,8 +856,8 @@
         const rw = Math.abs(p1.x - p2.x);
         const rh = Math.abs(p1.y - p2.y);
 
-        ctx.strokeStyle = activeTool === 'cache_select' ? 'rgba(245, 158, 11, 0.9)' : 'rgba(56, 189, 248, 0.8)';
-        ctx.fillStyle = activeTool === 'cache_select' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(56, 189, 248, 0.1)';
+        ctx.strokeStyle = activeTool === 'cache_select' ? '#fbbf24' : '#38bdf8';
+        ctx.fillStyle = activeTool === 'cache_select' ? 'rgba(251, 191, 36, 0.15)' : 'rgba(56, 189, 248, 0.1)';
         ctx.lineWidth = 1.5 / camera.zoom;
         ctx.setLineDash([4 / camera.zoom, 4 / camera.zoom]);
         ctx.fillRect(rx, ry, rw, rh);
@@ -942,7 +866,7 @@
       }
 
       ctx.restore();
-      requestAnimationFrame(render);
+      requestAnimationFrame(renderCanvas);
     }
 
     function drawGrid() {
@@ -955,7 +879,7 @@
       const startX = Math.floor(vpLeft / gridSize) * gridSize;
       const startY = Math.floor(vpTop / gridSize) * gridSize;
 
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
       for (let x = startX; x <= vpRight; x += gridSize) {
         for (let y = startY; y <= vpBottom; y += gridSize) {
           ctx.beginPath();
@@ -965,7 +889,7 @@
       }
     }
 
-    function drawBezierCable(x1, y1, x2, y2, color, isDraft = false) {
+    function drawBezierWire(x1, y1, x2, y2, color, isDraft = false) {
       ctx.beginPath();
       const dx = Math.abs(x2 - x1) * 0.55;
       ctx.moveTo(x1, y1);
@@ -976,7 +900,6 @@
       ctx.lineCap = 'round';
       ctx.stroke();
 
-      // Poświata kabla
       if (!isDraft) {
         ctx.strokeStyle = color;
         ctx.globalAlpha = 0.25;
@@ -987,38 +910,37 @@
     }
 
     function drawWires() {
-      for (let w of wires) {
-        const fn = nodes.find(n => n.id === w.fromNode);
-        const tn = nodes.find(n => n.id === w.toNode);
-        if (!fn || !tn) continue;
+      wires.forEach(w => {
+        const pFrom = parcels.find(p => p.id === w.fromId);
+        const pTo = parcels.find(p => p.id === w.toId);
+        if (!pFrom || !pTo) return;
 
-        const p1 = getPortWorldPosition(fn, true, w.fromPort);
-        const p2 = getPortWorldPosition(tn, false, w.toPort);
-        drawBezierCable(p1.x, p1.y, p2.x, p2.y, w.color);
-      }
+        const p1 = getParcelPortPosition(pFrom, true, w.fromPort);
+        const p2 = getParcelPortPosition(pTo, false, w.toPort);
+        drawBezierWire(p1.x, p1.y, p2.x, p2.y, w.color);
+      });
     }
 
     function drawParticles() {
       for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        const w = wires.find(item => item.id === p.wireId);
+        const pt = particles[i];
+        const w = wires.find(item => item.id === pt.wireId);
         if (!w) { particles.splice(i, 1); continue; }
 
-        const fn = nodes.find(n => n.id === w.fromNode);
-        const tn = nodes.find(n => n.id === w.toNode);
-        if (!fn || !tn) { particles.splice(i, 1); continue; }
+        const pFrom = parcels.find(p => p.id === w.fromId);
+        const pTo = parcels.find(p => p.id === w.toId);
+        if (!pFrom || !pTo) { particles.splice(i, 1); continue; }
 
-        const p1 = getPortWorldPosition(fn, true, w.fromPort);
-        const p2 = getPortWorldPosition(tn, false, w.toPort);
+        const p1 = getParcelPortPosition(pFrom, true, w.fromPort);
+        const p2 = getParcelPortPosition(pTo, false, w.toPort);
 
-        p.progress += p.speed;
-        if (p.progress >= 1) {
+        pt.progress += pt.speed;
+        if (pt.progress >= 1) {
           particles.splice(i, 1);
           continue;
         }
 
-        // Oblicz punkt na krzywej Beziera w chwili t
-        const t = p.progress;
+        const t = pt.progress;
         const dx = Math.abs(p2.x - p1.x) * 0.55;
         const cp1x = p1.x + dx, cp1y = p1.y;
         const cp2x = p2.x - dx, cp2y = p2.y;
@@ -1031,83 +953,77 @@
         ctx.arc(bx, by, 3 / camera.zoom, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = p.color;
+        ctx.fillStyle = pt.color;
         ctx.beginPath();
         ctx.arc(bx, by, 1.8 / camera.zoom, 0, Math.PI * 2);
         ctx.fill();
       }
     }
 
-    function drawNodes() {
-      for (let n of nodes) {
-        const isSelected = selectedNodeIds.has(n.id);
+    function drawParcels() {
+      parcels.forEach(p => {
+        const isSelected = selectedParcelIds.has(p.id);
 
-        // Wybór koloru obrysu przy zaznaczeniu
+        // Highlight ring if selected
         if (isSelected) {
           ctx.strokeStyle = activeTool === 'cache_select' ? '#fbbf24' : '#38bdf8';
           ctx.lineWidth = 3 / camera.zoom;
-          ctx.strokeRect(n.x - 4, n.y - 4, n.width + 8, n.height + 8);
+          ctx.strokeRect(p.x - 3, p.y - 3, p.width + 6, p.height + 6);
         }
 
-        // Rysowanie bryły węzła (Pill, Rect, Circle, Terminal)
-        ctx.fillStyle = n.color;
-        if (n.shape === 'pill') {
-          drawRoundedRect(ctx, n.x, n.y, n.width, n.height, 12);
-        } else if (n.shape === 'small_circle') {
-          ctx.beginPath();
-          ctx.arc(n.x + n.width/2, n.y + n.height/2, n.width/2, 0, Math.PI * 2);
-          ctx.fill();
-        } else if (n.shape === 'terminal') {
-          drawRoundedRect(ctx, n.x, n.y, n.width, n.height, 6);
-        } else {
-          // Standardowy zaokrąglony prostokąt
-          drawRoundedRect(ctx, n.x, n.y, n.width, n.height, n.isCache ? 8 : 4);
-        }
+        // Parcel body
+        ctx.fillStyle = p.color;
+        drawRoundedRect(ctx, p.x, p.y, p.width, p.height, 5);
 
-        // Wskaźnik pracy / aktywności
-        if (n.lastActive && n.lastActive > 0.1) {
-          ctx.fillStyle = '#4ade80';
-          ctx.beginPath();
-          ctx.arc(n.x + n.width - 4, n.y + 4, 2.5 / camera.zoom, 0, Math.PI * 2);
-          ctx.fill();
-        }
-
-        // Specjalna plakietka dla CACHE NODE
-        if (n.isCache) {
-          ctx.strokeStyle = '#c084fc';
+        // Cache badge
+        if (p.isCached) {
+          ctx.strokeStyle = '#a855f7';
           ctx.lineWidth = 1.5 / camera.zoom;
-          ctx.strokeRect(n.x, n.y, n.width, n.height);
+          ctx.strokeRect(p.x, p.y, p.width, p.height);
 
           ctx.fillStyle = '#ffffff';
-          ctx.font = `bold ${10 / camera.zoom}px sans-serif`;
+          ctx.font = `bold ${8.5 / camera.zoom}px sans-serif`;
           ctx.textAlign = 'center';
-          ctx.fillText("📦 CACHE", n.x + n.width / 2, n.y + n.height / 2 + 3);
+          ctx.fillText("📦 CACHE", p.x + p.width/2, p.y + p.height - 6);
         }
 
-        // Porty wejściowe (lewa strona)
-        for (let i = 0; i < n.inputs.length; i++) {
-          const pt = getPortWorldPosition(n, false, i);
+        // Parcel name text
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold ${9 / camera.zoom}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText(p.name, p.x + p.width / 2, p.y + 14);
+
+        // Slot utilization count
+        let usedSlots = 0;
+        for (let k in p.buildings) usedSlots += p.buildings[k];
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = `${7.5 / camera.zoom}px monospace`;
+        ctx.fillText(`${usedSlots}/${p.totalSlots} Slots`, p.x + p.width / 2, p.y + 26);
+
+        // Input Ports (Left side)
+        for (let i = 0; i < p.portsIn; i++) {
+          const pt = getParcelPortPosition(p, false, i);
           ctx.fillStyle = '#0f172a';
           ctx.beginPath();
-          ctx.arc(pt.x, pt.y, 4.5 / camera.zoom, 0, Math.PI * 2);
+          ctx.arc(pt.x, pt.y, 4 / camera.zoom, 0, Math.PI * 2);
           ctx.fill();
           ctx.strokeStyle = '#94a3b8';
-          ctx.lineWidth = 1.5 / camera.zoom;
+          ctx.lineWidth = 1.2 / camera.zoom;
           ctx.stroke();
         }
 
-        // Porty wyjściowe (prawa strona)
-        for (let i = 0; i < n.outputs.length; i++) {
-          const pt = getPortWorldPosition(n, true, i);
+        // Output Ports (Right side)
+        for (let i = 0; i < p.portsOut; i++) {
+          const pt = getParcelPortPosition(p, true, i);
           ctx.fillStyle = '#38bdf8';
           ctx.beginPath();
-          ctx.arc(pt.x, pt.y, 4.5 / camera.zoom, 0, Math.PI * 2);
+          ctx.arc(pt.x, pt.y, 4 / camera.zoom, 0, Math.PI * 2);
           ctx.fill();
           ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 1.5 / camera.zoom;
+          ctx.lineWidth = 1.2 / camera.zoom;
           ctx.stroke();
         }
-      }
+      });
     }
 
     function drawRoundedRect(context, x, y, width, height, radius) {
@@ -1125,11 +1041,11 @@
       context.fill();
     }
 
-    // --- OBSŁUGA ZDARZEŃ MYSZY, INTERAKCJI, PRZECIĄGANIA I PAN&ZOOM ---
+    // --- INTERACTION & EVENT LISTENERS ---
     canvas.addEventListener('mousedown', (e) => {
       const mouse = screenToWorld(e.clientX, e.clientY);
 
-      // Środkowy przycisk myszy lub Spacja -> Przesuwanie kamery (Pan)
+      // Pan with middle mouse, space, or shift
       if (e.button === 1 || e.shiftKey || e.altKey) {
         camera.isPanning = true;
         camera.startX = e.clientX - camera.x;
@@ -1137,52 +1053,51 @@
         return;
       }
 
-      if (e.button === 0) { // Lewy klik
-        // 1. Sprawdź kliknięcie w port (rozpoczęcie tworzenia kabla)
-        for (let n of nodes) {
-          // Porty wyjściowe
-          for (let i = 0; i < n.outputs.length; i++) {
-            const p = getPortWorldPosition(n, true, i);
-            const dist = Math.hypot(p.x - mouse.x, p.y - mouse.y);
-            if (dist < 10 / camera.zoom) {
-              wiringSource = { nodeId: n.id, portIndex: i, isOutput: true, currentX: e.clientX, currentY: e.clientY };
-              playTone(400, 'sine', 0.05, 0.05);
+      if (e.button === 0) { // Left click
+        // 1. Check clicking on output ports to wire
+        for (let p of parcels) {
+          for (let i = 0; i < p.portsOut; i++) {
+            const pt = getParcelPortPosition(p, true, i);
+            const dist = Math.hypot(pt.x - mouse.x, pt.y - mouse.y);
+            if (dist < 8 / camera.zoom) {
+              wiringSource = { parcelId: p.id, portIdx: i, isOutput: true, currentX: e.clientX, currentY: e.clientY };
+              playAudio(440, 'sine', 0.05, 0.05);
               return;
             }
           }
         }
 
-        // 2. Kliknięcie w węzeł (Zaznaczenie lub Przeciąganie węzła)
-        const hitNode = nodes.slice().reverse().find(n => 
-          mouse.x >= n.x && mouse.x <= n.x + n.width &&
-          mouse.y >= n.y && mouse.y <= n.y + n.height
+        // 2. Check clicking on a Parcel
+        const hit = parcels.slice().reverse().find(p => 
+          mouse.x >= p.x && mouse.x <= p.x + p.width &&
+          mouse.y >= p.y && mouse.y <= p.y + p.height
         );
 
-        if (hitNode) {
+        if (hit) {
           if (activeTool === 'cache_select') {
-            if (selectedNodeIds.has(hitNode.id)) selectedNodeIds.delete(hitNode.id);
-            else selectedNodeIds.add(hitNode.id);
+            if (selectedParcelIds.has(hit.id)) selectedParcelIds.delete(hit.id);
+            else selectedParcelIds.add(hit.id);
             return;
           }
 
-          if (!e.ctrlKey && !selectedNodeIds.has(hitNode.id)) {
-            selectedNodeIds.clear();
+          if (!e.ctrlKey && !selectedParcelIds.has(hit.id)) {
+            selectedParcelIds.clear();
           }
-          selectedNodeIds.add(hitNode.id);
-          draggedNode = hitNode;
-          dragOffset.x = mouse.x - hitNode.x;
-          dragOffset.y = mouse.y - hitNode.y;
+          selectedParcelIds.add(hit.id);
+          draggedParcel = hit;
+          dragOffset.x = mouse.x - hit.x;
+          dragOffset.y = mouse.y - hit.y;
           return;
         }
 
-        // 3. Kliknięcie w puste tło -> Zaznaczanie prostokątne (Marquee) lub Panning
+        // 3. Click in empty space -> Marquee selection
         if (activeTool === 'cache_select' || !e.ctrlKey) {
           marquee.active = true;
           marquee.startX = e.clientX;
           marquee.startY = e.clientY;
           marquee.currentX = e.clientX;
           marquee.currentY = e.clientY;
-          if (activeTool !== 'cache_select') selectedNodeIds.clear();
+          if (activeTool !== 'cache_select') selectedParcelIds.clear();
         }
       }
     });
@@ -1200,17 +1115,16 @@
         return;
       }
 
-      if (draggedNode) {
+      if (draggedParcel) {
         const mouse = screenToWorld(e.clientX, e.clientY);
-        const dx = (mouse.x - dragOffset.x) - draggedNode.x;
-        const dy = (mouse.y - dragOffset.y) - draggedNode.y;
+        const dx = (mouse.x - dragOffset.x) - draggedParcel.x;
+        const dy = (mouse.y - dragOffset.y) - draggedParcel.y;
         
-        // Przesuń wszystkie zaznaczone węzły wspólnie
-        selectedNodeIds.forEach(id => {
-          const n = nodes.find(item => item.id === id);
-          if (n) {
-            n.x += dx;
-            n.y += dy;
+        selectedParcelIds.forEach(id => {
+          const p = parcels.find(item => item.id === id);
+          if (p) {
+            p.x += dx;
+            p.y += dy;
           }
         });
         return;
@@ -1223,20 +1137,18 @@
     });
 
     window.addEventListener('mouseup', (e) => {
-      if (camera.isPanning) {
-        camera.isPanning = false;
-      }
+      if (camera.isPanning) camera.isPanning = false;
 
-      // Koniec przeciągania kabla -> weryfikacja podłączenia do portu wejściowego
+      // Complete wire connection
       if (wiringSource) {
         const mouse = screenToWorld(e.clientX, e.clientY);
-        for (let n of nodes) {
-          if (n.id === wiringSource.nodeId) continue;
-          for (let i = 0; i < n.inputs.length; i++) {
-            const p = getPortWorldPosition(n, false, i);
-            const dist = Math.hypot(p.x - mouse.x, p.y - mouse.y);
-            if (dist < 14 / camera.zoom) {
-              connectNodes(wiringSource.nodeId, wiringSource.portIndex, n.id, i);
+        for (let p of parcels) {
+          if (p.id === wiringSource.parcelId) continue;
+          for (let i = 0; i < p.portsIn; i++) {
+            const pt = getParcelPortPosition(p, false, i);
+            const dist = Math.hypot(pt.x - mouse.x, pt.y - mouse.y);
+            if (dist < 10 / camera.zoom) {
+              connectParcels(wiringSource.parcelId, wiringSource.portIdx, p.id, i);
               break;
             }
           }
@@ -1244,9 +1156,9 @@
         wiringSource = null;
       }
 
-      draggedNode = null;
+      draggedParcel = null;
 
-      // Zakończenie zaznaczania prostokątnego
+      // Finish marquee selection
       if (marquee.active) {
         marquee.active = false;
         const p1 = screenToWorld(marquee.startX, marquee.startY);
@@ -1257,141 +1169,410 @@
         const rh = Math.abs(p1.y - p2.y);
 
         if (rw > 5 && rh > 5) {
-          nodes.forEach(n => {
-            if (n.x + n.width >= rx && n.x <= rx + rw && n.y + n.height >= ry && n.y <= ry + rh) {
-              selectedNodeIds.add(n.id);
+          parcels.forEach(p => {
+            if (p.x + p.width >= rx && p.x <= rx + rw && p.y + p.height >= ry && p.y <= ry + rh) {
+              selectedParcelIds.add(p.id);
             }
           });
 
           if (activeTool === 'cache_select') {
-            analyzeSelectedNodesForCache();
+            openCacheBuilderModal();
           }
         }
       }
     });
 
-    // Zoom kółkiem myszy
+    // Double click to open the Authentic Parcel Modal
+    canvas.addEventListener('dblclick', (e) => {
+      const mouse = screenToWorld(e.clientX, e.clientY);
+      const hit = parcels.slice().reverse().find(p => 
+        mouse.x >= p.x && mouse.x <= p.x + p.width &&
+        mouse.y >= p.y && mouse.y <= p.y + p.height
+      );
+
+      if (hit) {
+        openParcelModal(hit);
+      }
+    });
+
+    // Zoom
     canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
-      const zoomFactor = e.deltaY < 0 ? 1.15 : 0.85;
+      const factor = e.deltaY < 0 ? 1.15 : 0.85;
       const mouseX = e.clientX;
       const mouseY = e.clientY;
-
-      const newZoom = Math.min(Math.max(0.2, camera.zoom * zoomFactor), 3.5);
+      const newZoom = Math.min(Math.max(0.2, camera.zoom * factor), 3.5);
 
       camera.x = mouseX - (mouseX - camera.x) * (newZoom / camera.zoom);
       camera.y = mouseY - (mouseY - camera.y) * (newZoom / camera.zoom);
       camera.zoom = newZoom;
     }, { passive: false });
 
-    // Usuwanie klawiszem Delete/Backspace
+    // Delete key
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedNodeIds.size > 0 && !document.getElementById('modal-cache').classList.contains('hidden')) return;
-        deleteSelectedNodes();
+        if (!document.getElementById('parcel-modal').classList.contains('hidden')) return;
+        if (selectedParcelIds.size > 0) {
+          parcels = parcels.filter(p => !selectedParcelIds.has(p.id));
+          wires = wires.filter(w => !selectedParcelIds.has(w.fromId) && !selectedParcelIds.has(w.toId));
+          selectedParcelIds.clear();
+          updateHudCounts();
+          showToast("Deleted selected parcels");
+        }
       }
     });
 
-    function deleteSelectedNodes() {
-      if (selectedNodeIds.size === 0) return;
-      nodes = nodes.filter(n => !selectedNodeIds.has(n.id));
-      wires = wires.filter(w => !selectedNodeIds.has(w.fromNode) && !selectedNodeIds.has(w.toNode));
-      selectedNodeIds.clear();
-      updateCountsHUD();
-      playTone(200, 'sawtooth', 0.1, 0.1);
-      showToast("Usunięto zaznaczone obiekty.");
+    // --- BOTTOM HUD ACTIONS ---
+    function spawnParcel(type) {
+      const center = screenToWorld(window.innerWidth / 2, window.innerHeight / 2);
+      const jitterX = (Math.random() - 0.5) * 80;
+      const jitterY = (Math.random() - 0.5) * 80;
+      const newParcel = createParcelInstance(type, center.x + jitterX, center.y + jitterY);
+      parcels.push(newParcel);
+      selectedParcelIds.clear();
+      selectedParcelIds.add(newParcel.id);
+      updateHudCounts();
+      playAudio(620, 'sine', 0.08, 0.08);
+      showToast(`Created new ${newParcel.name}`);
     }
 
-    // --- DOLNY PANEL BUDOWANIA I PALETY JEDNOSTEK ---
-    let currentCategory = null;
-
-    function selectCategory(cat) {
-      if (currentCategory === cat) {
-        document.getElementById('build-palette').classList.add('hidden');
-        currentCategory = null;
-        return;
-      }
-      currentCategory = cat;
-      const palette = document.getElementById('build-palette');
-      palette.innerHTML = '';
-
-      const items = Object.entries(NODE_TEMPLATES).filter(([k, v]) => v.category === cat);
-      items.forEach(([k, t]) => {
-        const btn = document.createElement('button');
-        btn.className = "flex flex-col items-center gap-1.5 p-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-sky-400 transition-all text-xs min-w-[90px]";
-        btn.innerHTML = `
-          <div class="w-7 h-7 rounded-md flex items-center justify-center font-bold text-[10px]" style="background: ${t.color}">${t.name.slice(0,2)}</div>
-          <span class="font-medium text-slate-200 text-center text-[11px] leading-tight">${t.name}</span>
-          <span class="text-[10px] text-amber-400 font-mono">${t.cost} sztab</span>
-        `;
-        btn.onclick = () => spawnNodeAtCenter(k);
-        palette.appendChild(btn);
+    function updateHudCounts() {
+      let ext = 0, prod = 0, node = 0, wh = 0, cached = 0;
+      parcels.forEach(p => {
+        if (p.isCached) cached++;
+        if (p.type === 'extraction') ext++;
+        if (p.type === 'production') prod++;
+        if (p.type === 'node') node++;
+        if (p.type === 'warehouse') wh++;
       });
-
-      palette.classList.remove('hidden');
-      playTone(500, 'sine', 0.04, 0.05);
+      document.getElementById('hud-count-ext').innerText = ext;
+      document.getElementById('hud-count-prod').innerText = prod;
+      document.getElementById('hud-count-nodes').innerText = node;
+      document.getElementById('hud-count-wh').innerText = wh;
+      document.getElementById('top-parcels-stat').innerText = `Parcels: ${parcels.length} (Cached: ${cached})`;
     }
 
-    function spawnNodeAtCenter(templateKey) {
-      const centerWorld = screenToWorld(window.innerWidth / 2, window.innerHeight / 2);
-      // Dodaj losowe małe przesunięcie aby węzły nie nakładały się w 100%
-      const jitterX = (Math.random() - 0.5) * 60;
-      const jitterY = (Math.random() - 0.5) * 60;
-      const newNode = createNodeInstance(templateKey, centerWorld.x + jitterX, centerWorld.y + jitterY);
-      nodes.push(newNode);
-      selectedNodeIds.clear();
-      selectedNodeIds.add(newNode.id);
-      updateCountsHUD();
-      playTone(650, 'triangle', 0.1, 0.1);
-      showToast(`Postawiono: ${newNode.name}`);
-    }
-
-    function updateCountsHUD() {
-      let ext = 0, prod = 0, log = 0, cached = 0;
-      nodes.forEach(n => {
-        if (n.isCache) { cached++; return; }
-        const cat = NODE_TEMPLATES[n.templateKey]?.category;
-        if (cat === 'extraction') ext++;
-        if (cat === 'production') prod++;
-        if (cat === 'logistics') log++;
-      });
-      document.getElementById('count-ext').innerText = ext;
-      document.getElementById('count-prod').innerText = prod;
-      document.getElementById('count-nodes').innerText = log;
-      document.getElementById('count-wh').innerText = Object.keys(globalStorage).length;
-      document.getElementById('stats-nodes').innerText = `Węzły: ${nodes.length} (Cachowane: ${cached})`;
-    }
-
-    function toggleWarehouseDrawer() {
-      const el = document.getElementById('warehouse-drawer');
-      el.classList.toggle('hidden');
-    }
-
-    function updateWarehouseView() {
-      const container = document.getElementById('warehouse-items');
-      if (document.getElementById('warehouse-drawer').classList.contains('hidden')) return;
-
-      container.innerHTML = Object.entries(globalStorage).map(([k, amt]) => {
-        const meta = RESOURCES[k] || { name: k, color: '#fff' };
-        return `
-          <div class="flex justify-between items-center p-1.5 bg-slate-900 rounded border border-slate-800">
-            <span class="flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full" style="background: ${meta.color}"></span>
-              <span class="text-slate-300">${meta.name}</span>
-            </span>
-            <span class="font-bold text-sky-400">${Math.floor(amt)}</span>
-          </div>
-        `;
-      }).join('');
-    }
-
-    document.getElementById('btn-reset-view').addEventListener('click', () => {
-      camera.x = window.innerWidth / 2;
-      camera.y = window.innerHeight / 2;
+    document.getElementById('btn-center-cam').addEventListener('click', () => {
+      camera.x = window.innerWidth / 2 - 320;
+      camera.y = window.innerHeight / 2 - 240;
       camera.zoom = 1.0;
     });
 
-    // --- INTEGRACJA ZAPISU W CHMURZE GITHUB GIST I LOCALSTORAGE ---
+    // --- AUTHENTIC PARCEL MODAL IMPLEMENTATION ---
+    function openParcelModal(parcel) {
+      currentOpenParcel = parcel;
+      document.getElementById('pm-title').innerText = parcel.name;
+      document.getElementById('pm-subtitle').innerText = `${parcel.type.toUpperCase()} PARCEL`;
+      document.getElementById('pm-parcel-id').innerText = parcel.id;
+      document.getElementById('pm-storage-val').innerText = parcel.storageCapacity.toLocaleString();
+
+      const conns = wires.filter(w => w.fromId === parcel.id || w.toId === parcel.id).length;
+      document.getElementById('pm-connections-val').innerText = `${conns} / 8`;
+
+      const freezeBtn = document.getElementById('pm-btn-freeze');
+      if (parcel.isCached) {
+        freezeBtn.innerText = "🔓 Unfreeze Parcel";
+        freezeBtn.classList.replace('bg-[#4f46e5]', 'bg-[#059669]');
+      } else {
+        freezeBtn.innerText = "📦 Cache This Parcel (O(1))";
+        freezeBtn.classList.replace('bg-[#059669]', 'bg-[#4f46e5]');
+      }
+
+      filterBuildingList();
+      updateOpenParcelModal();
+      document.getElementById('parcel-modal').classList.remove('hidden');
+    }
+
+    function closeParcelModal() {
+      document.getElementById('parcel-modal').classList.add('hidden');
+      currentOpenParcel = null;
+    }
+
+    function renameParcelPrompt() {
+      if (!currentOpenParcel) return;
+      const newName = prompt("Rename Parcel:", currentOpenParcel.name);
+      if (newName && newName.trim()) {
+        currentOpenParcel.name = newName.trim();
+        document.getElementById('pm-title').innerText = currentOpenParcel.name;
+      }
+    }
+
+    function changeColorPrompt() {
+      if (!currentOpenParcel) return;
+      const colors = ['#0284c7', '#c2410c', '#7c3aed', '#10b981', '#e11d48', '#eab308', '#475569'];
+      const curIdx = colors.indexOf(currentOpenParcel.color);
+      currentOpenParcel.color = colors[(curIdx + 1) % colors.length];
+    }
+
+    function deleteCurrentParcel() {
+      if (!currentOpenParcel) return;
+      const id = currentOpenParcel.id;
+      parcels = parcels.filter(p => p.id !== id);
+      wires = wires.filter(w => w.fromId !== id && w.toId !== id);
+      closeParcelModal();
+      updateHudCounts();
+      showToast("Parcel deleted");
+    }
+
+    function toggleParcelFreeze() {
+      if (!currentOpenParcel) return;
+      if (currentOpenParcel.isCached) {
+        currentOpenParcel.isCached = false;
+        currentOpenParcel.cacheData = null;
+        showToast(`Parcel ${currentOpenParcel.name} unfrozen!`);
+      } else {
+        // Compile current parcel rates into cache
+        let netIn = {};
+        let netOut = {};
+        let totalPwr = 0;
+
+        for (let bKey in currentOpenParcel.buildings) {
+          const count = currentOpenParcel.buildings[bKey];
+          const b = BUILDINGS[bKey];
+          if (!b || count <= 0) continue;
+          totalPwr += b.power * count;
+          for (let i in b.in) netIn[i] = (netIn[i] || 0) + b.in[i] * b.rate * count;
+          for (let o in b.out) netOut[o] = (netOut[o] || 0) + b.out[o] * b.rate * count;
+        }
+
+        // Simplify
+        for (let r in netOut) {
+          if (netIn[r]) {
+            const cancel = Math.min(netOut[r], netIn[r]);
+            netOut[r] -= cancel;
+            netIn[r] -= cancel;
+            if (netOut[r] <= 0.001) delete netOut[r];
+            if (netIn[r] <= 0.001) delete netIn[r];
+          }
+        }
+
+        currentOpenParcel.isCached = true;
+        currentOpenParcel.cacheData = {
+          netInputs: netIn,
+          netOutputs: netOut,
+          power: totalPwr
+        };
+        showToast(`Parcel ${currentOpenParcel.name} compiled to O(1) Cache!`);
+      }
+      openParcelModal(currentOpenParcel);
+    }
+
+    function updateOpenParcelModal() {
+      if (!currentOpenParcel) return;
+      const p = currentOpenParcel;
+
+      // Update building slots calculation
+      let usedSlots = 0;
+      for (let k in p.buildings) usedSlots += p.buildings[k];
+      const freeSlots = Math.max(0, p.totalSlots - usedSlots);
+      const extraConns = (freeSlots * 0.16).toFixed(1);
+
+      document.getElementById('pm-slots-val').innerText = `${usedSlots} / ${p.totalSlots}`;
+      document.getElementById('pm-slots-extra').innerText = `${freeSlots} Free → + ${extraConns} Extra Connections`;
+
+      // Update Resources inventory table (Left column)
+      const resContainer = document.getElementById('pm-resource-list');
+      const keys = Object.keys(RESOURCES);
+      
+      resContainer.innerHTML = keys.map(k => {
+        const meta = RESOURCES[k];
+        const qty = Math.floor(p.resources[k] || 0);
+        const rate = p.rates[k] || 0;
+        const rateStr = rate >= 0 ? `+${rate.toFixed(1)}` : `${rate.toFixed(1)}`;
+        const isOutputting = p.outputWhitelist[k] !== false;
+
+        return `
+          <div class="grid grid-cols-4 items-center py-1.5 px-1 hover:bg-[#2b2b2b]">
+            <div class="flex items-center gap-2">
+              <span>${meta.icon}</span>
+              <span class="text-white font-medium">${meta.name}</span>
+            </div>
+            <div class="text-right font-mono font-bold ${qty > 0 ? 'text-sky-300' : 'text-[#666]'}">${qty}</div>
+            <div class="text-right font-mono ${rate > 0 ? 'text-emerald-400' : rate < 0 ? 'text-red-400' : 'text-[#666]'}">${rateStr}/s</div>
+            <div class="text-right">
+              <input type="checkbox" ${isOutputting ? 'checked' : ''} onchange="toggleResourceOutput('${k}', this.checked)" class="accent-sky-500 rounded bg-[#333]">
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Refresh building counts
+      for (let bKey in BUILDINGS) {
+        const el = document.getElementById(`pm-bqty-${bKey}`);
+        if (el) el.innerText = p.buildings[bKey] || 0;
+      }
+    }
+
+    function toggleResourceOutput(resKey, checked) {
+      if (!currentOpenParcel) return;
+      currentOpenParcel.outputWhitelist[resKey] = checked;
+    }
+
+    function filterBuildingList() {
+      if (!currentOpenParcel) return;
+      const query = (document.getElementById('pm-search').value || '').toLowerCase();
+      const container = document.getElementById('pm-building-list');
+      
+      let html = '';
+      for (let bKey in BUILDINGS) {
+        const b = BUILDINGS[bKey];
+        if (query && !b.name.toLowerCase().includes(query)) continue;
+        const qty = currentOpenParcel.buildings[bKey] || 0;
+
+        html += `
+          <div class="grid grid-cols-12 items-center py-2 px-1 hover:bg-[#2b2b2b]">
+            <div class="col-span-2 flex items-center gap-1">
+              <button onclick="changeBuildingSlot('${bKey}', 1)" class="if-btn-action px-2 py-0.5 rounded text-white text-xs font-bold leading-none">+</button>
+              <button onclick="changeBuildingSlot('${bKey}', -1)" class="if-btn-action px-2 py-0.5 rounded text-slate-400 text-xs font-bold leading-none">-</button>
+            </div>
+            <div id="pm-bqty-${bKey}" class="col-span-2 text-center font-mono font-bold text-white">${qty}</div>
+            <div class="col-span-8 flex items-center gap-2">
+              <span class="text-sm">${b.icon}</span>
+              <span class="text-white font-medium">${b.name}</span>
+            </div>
+          </div>
+        `;
+      }
+      container.innerHTML = html;
+    }
+
+    function changeBuildingSlot(buildingKey, delta) {
+      if (!currentOpenParcel) return;
+      const p = currentOpenParcel;
+
+      let usedSlots = 0;
+      for (let k in p.buildings) usedSlots += p.buildings[k];
+
+      if (delta > 0 && usedSlots >= p.totalSlots) {
+        showToast("No free building slots available in this Parcel!");
+        return;
+      }
+
+      const current = p.buildings[buildingKey] || 0;
+      const updated = Math.max(0, current + delta);
+      if (updated === 0) delete p.buildings[buildingKey];
+      else p.buildings[buildingKey] = updated;
+
+      playAudio(delta > 0 ? 580 : 380, 'triangle', 0.04, 0.06);
+      updateOpenParcelModal();
+    }
+
+    // --- CACHE SUB-FACTORY (CONSOLIDATION OF MULTIPLE PARCELS) ---
+    function activateCacheSelectionTool() {
+      activeTool = 'cache_select';
+      selectedParcelIds.clear();
+      showToast("CACHE SUB-FACTORY: Drag marquee to select parcels to consolidate.");
+    }
+
+    function openCacheBuilderModal() {
+      if (selectedParcelIds.size < 2) {
+        showToast("Select at least 2 parcels to compile a Cache Sub-Factory.");
+        activeTool = 'select';
+        return;
+      }
+
+      const cluster = parcels.filter(p => selectedParcelIds.has(p.id));
+      let totalPwr = 0;
+      let inMap = {};
+      let outMap = {};
+
+      cluster.forEach(p => {
+        if (p.isCached && p.cacheData) {
+          totalPwr += p.cacheData.power;
+          for (let k in p.cacheData.netInputs) inMap[k] = (inMap[k] || 0) + p.cacheData.netInputs[k];
+          for (let k in p.cacheData.netOutputs) outMap[k] = (outMap[k] || 0) + p.cacheData.netOutputs[k];
+        } else {
+          for (let bKey in p.buildings) {
+            const count = p.buildings[bKey];
+            const b = BUILDINGS[bKey];
+            if (!b || count <= 0) continue;
+            totalPwr += b.power * count;
+            for (let i in b.in) inMap[i] = (inMap[i] || 0) + b.in[i] * b.rate * count;
+            for (let o in b.out) outMap[o] = (outMap[o] || 0) + b.out[o] * b.rate * count;
+          }
+        }
+      });
+
+      // Net cancellation
+      for (let r in outMap) {
+        if (inMap[r]) {
+          const cancel = Math.min(outMap[r], inMap[r]);
+          outMap[r] -= cancel;
+          inMap[r] -= cancel;
+          if (outMap[r] <= 0.001) delete outMap[r];
+          if (inMap[r] <= 0.001) delete inMap[r];
+        }
+      }
+
+      document.getElementById('cache-count').innerText = `${cluster.length} Parcels`;
+      document.getElementById('cache-inputs').innerText = Object.entries(inMap).map(([k,v]) => `${v.toFixed(1)}/s ${RESOURCES[k]?.name || k}`).join(', ') || 'Self-contained';
+      document.getElementById('cache-outputs').innerText = Object.entries(outMap).map(([k,v]) => `+${v.toFixed(1)}/s ${RESOURCES[k]?.name || k}`).join(', ') || 'Pure consumer';
+      document.getElementById('cache-power').innerText = `${totalPwr} MW`;
+
+      window.tempClusterCompilation = { cluster, inMap, outMap, totalPwr };
+      document.getElementById('modal-cache-builder').classList.remove('hidden');
+    }
+
+    function closeCacheBuilder() {
+      document.getElementById('modal-cache-builder').classList.add('hidden');
+      activeTool = 'select';
+      window.tempClusterCompilation = null;
+    }
+
+    function commitSubFactoryCache() {
+      if (!window.tempClusterCompilation) return;
+      const data = window.tempClusterCompilation;
+      const modName = document.getElementById('cache-mod-name').value || "Sub-Factory Cache";
+
+      // Compute geometric average coordinates
+      let avgX = 0, avgY = 0;
+      data.cluster.forEach(p => { avgX += p.x; avgY += p.y; });
+      avgX /= data.cluster.length;
+      avgY /= data.cluster.length;
+
+      const clusterIds = new Set(data.cluster.map(p => p.id));
+
+      // Re-route external wires
+      const externalWires = [];
+      wires.forEach(w => {
+        const fromIn = clusterIds.has(w.fromId);
+        const toIn = clusterIds.has(w.toId);
+        if (!fromIn && toIn) externalWires.push({ type: 'in', wire: w });
+        if (fromIn && !toIn) externalWires.push({ type: 'out', wire: w });
+      });
+
+      // Remove internal parcels & wires
+      parcels = parcels.filter(p => !clusterIds.has(p.id));
+      wires = wires.filter(w => !clusterIds.has(w.fromId) && !clusterIds.has(w.toId));
+
+      // Create new consolidated Cached Parcel
+      const cachedParcel = createParcelInstance('cache_block', avgX, avgY, modName, {
+        netInputs: data.inMap,
+        netOutputs: data.outMap,
+        power: data.totalPwr,
+        originalParcelsCount: data.cluster.length
+      });
+      parcels.push(cachedParcel);
+
+      // Re-attach external wires
+      externalWires.forEach(item => {
+        if (item.type === 'in') {
+          connectParcels(item.wire.fromId, item.wire.fromPort, cachedParcel.id, 0);
+        } else {
+          connectParcels(cachedParcel.id, 0, item.wire.toId, item.wire.toPort);
+        }
+      });
+
+      playAudio(523, 'sine', 0.2, 0.15);
+      setTimeout(() => playAudio(1046, 'triangle', 0.25, 0.12), 120);
+
+      closeCacheBuilder();
+      selectedParcelIds.clear();
+      updateHudCounts();
+      showToast(`Consolidated ${data.cluster.length} Parcels into O(1) Cache '${modName}'!`);
+    }
+
+    // --- CLOUD GITHUB GIST & LOCAL STORAGE ---
     function openCloudModal() {
       document.getElementById('gh-token').value = localStorage.getItem('if_gh_token') || '';
       document.getElementById('gh-gist-id').value = localStorage.getItem('if_gh_gist_id') || '';
@@ -1401,51 +1582,52 @@
       document.getElementById('modal-cloud').classList.add('hidden');
     }
 
-    function getSavePayload() {
+    function getSaveJSONPayload() {
       return {
         timestamp: Date.now(),
-        nodes,
+        globalResearchPoints,
+        parcelCounter,
+        parcels,
         wires,
-        globalStorage,
         camera: { x: camera.x, y: camera.y, zoom: camera.zoom }
       };
     }
 
-    function restoreFromPayload(data) {
-      if (!data || !data.nodes) return;
-      nodes = data.nodes;
+    function applySavePayload(data) {
+      if (!data || !data.parcels) return;
+      parcels = data.parcels;
       wires = data.wires;
-      globalStorage = data.globalStorage || globalStorage;
+      globalResearchPoints = data.globalResearchPoints || 0;
+      parcelCounter = data.parcelCounter || parcels.length + 100;
       if (data.camera) {
         camera.x = data.camera.x;
         camera.y = data.camera.y;
         camera.zoom = data.camera.zoom;
       }
-      updateCountsHUD();
-      showToast("Stan fabryki został pomyślnie wczytany!");
+      updateHudCounts();
+      showToast("Game state loaded successfully!");
     }
 
-    function exportSaveJSON() {
-      const str = JSON.stringify(getSavePayload());
-      // Kopiowanie bezpieczne dla iFrame
-      const dummy = document.createElement('textarea');
-      document.body.appendChild(dummy);
-      dummy.value = str;
-      dummy.select();
+    function copySaveJSON() {
+      const json = JSON.stringify(getSaveJSONPayload());
+      const area = document.createElement('textarea');
+      document.body.appendChild(area);
+      area.value = json;
+      area.select();
       document.execCommand('copy');
-      document.body.removeChild(dummy);
-      showToast("Zapis JSON skopiowany do schowka!");
+      document.body.removeChild(area);
+      showToast("Save JSON copied to clipboard!");
     }
 
-    function importSavePrompt() {
-      const str = prompt("Wklej kod zapisu JSON:");
+    function importSaveJSONPrompt() {
+      const str = prompt("Paste Save JSON string:");
       if (str) {
         try {
           const parsed = JSON.parse(str);
-          restoreFromPayload(parsed);
+          applySavePayload(parsed);
           closeCloudModal();
         } catch (e) {
-          showToast("Niepoprawny format danych JSON.");
+          showToast("Invalid JSON save format.");
         }
       }
     }
@@ -1454,7 +1636,7 @@
       const token = document.getElementById('gh-token').value.trim();
       const gistId = document.getElementById('gh-gist-id').value.trim();
       if (!token) {
-        showToast("Wymagany GitHub Personal Access Token (PAT)!");
+        showToast("GitHub Personal Access Token required!");
         return;
       }
       localStorage.setItem('if_gh_token', token);
@@ -1464,7 +1646,7 @@
         public: false,
         files: {
           "incremental_factory_save.json": {
-            content: JSON.stringify(getSavePayload(), null, 2)
+            content: JSON.stringify(getSaveJSONPayload(), null, 2)
           }
         }
       };
@@ -1473,7 +1655,7 @@
       const method = gistId ? 'PATCH' : 'POST';
 
       try {
-        showToast("Wysyłanie do GitHub Gist...");
+        showToast("Syncing with GitHub Gist...");
         const res = await fetch(url, {
           method,
           headers: { "Authorization": `token ${token}`, "Content-Type": "application/json" },
@@ -1483,13 +1665,13 @@
         if (d.id) {
           localStorage.setItem('if_gh_gist_id', d.id);
           document.getElementById('gh-gist-id').value = d.id;
-          showToast(`Zapisano w chmurze! Gist ID: ${d.id}`);
-          playTone(800, 'sine', 0.2, 0.2);
+          showToast(`Saved to Cloud! Gist ID: ${d.id}`);
+          playAudio(880, 'sine', 0.2, 0.15);
         } else {
-          showToast("Błąd zapisu GitHub: " + (d.message || "Brak uprawnień"));
+          showToast("GitHub Gist Error: " + (d.message || "Unauthorized"));
         }
       } catch (err) {
-        showToast("Błąd połączenia z GitHub API: " + err.message);
+        showToast("GitHub Connection Error: " + err.message);
       }
     }
 
@@ -1497,46 +1679,45 @@
       const token = document.getElementById('gh-token').value.trim();
       const gistId = document.getElementById('gh-gist-id').value.trim();
       if (!gistId) {
-        showToast("Wpisz Gist ID do wczytania.");
+        showToast("Provide a valid Gist ID to load.");
         return;
       }
       try {
-        showToast("Pobieranie z GitHub Gist...");
+        showToast("Downloading from GitHub Gist...");
         const res = await fetch(`https://api.github.com/gists/${gistId}`, {
           headers: token ? { "Authorization": `token ${token}` } : {}
         });
         const d = await res.json();
-        const rawContent = d.files["incremental_factory_save.json"]?.content;
-        if (rawContent) {
-          const parsed = JSON.parse(rawContent);
-          restoreFromPayload(parsed);
+        const content = d.files["incremental_factory_save.json"]?.content;
+        if (content) {
+          applySavePayload(JSON.parse(content));
           closeCloudModal();
         } else {
-          showToast("Plik incremental_factory_save.json nie został znaleziony w podanym Giście.");
+          showToast("Gist file 'incremental_factory_save.json' not found.");
         }
       } catch (err) {
-        showToast("Błąd pobierania: " + err.message);
+        showToast("Gist download error: " + err.message);
       }
     }
 
-    // Auto-save do localStorage
+    // Auto-save to LocalStorage every 15s
     setInterval(() => {
-      localStorage.setItem('if_local_save', JSON.stringify(getSavePayload()));
+      localStorage.setItem('if_local_save', JSON.stringify(getSaveJSONPayload()));
     }, 15000);
 
-    // Sprawdź czy istnieje lokalny zapis w przeglądarce, jeśli nie - załaduj schemat startowy
+    // Initialization on load
     window.addEventListener('load', () => {
-      const saved = localStorage.getItem('if_local_save');
-      if (saved) {
+      const local = localStorage.getItem('if_local_save');
+      if (local) {
         try {
-          restoreFromPayload(JSON.parse(saved));
+          applySavePayload(JSON.parse(local));
         } catch (e) {
-          initializeStarterFactory();
+          initializeStarterGame();
         }
       } else {
-        initializeStarterFactory();
+        initializeStarterGame();
       }
-      render();
+      renderCanvas();
     });
   </script>
 </body>
