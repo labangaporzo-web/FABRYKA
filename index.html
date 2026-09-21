@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Incremental Factory + Cache Engine</title>
+  <style>
+    :root {
+      --bg-main: #0f141c;
+      --bg-panel: #18202c;
+      --bg-sub: #222d3d;
+      --border: #33445c;
+      --accent: #38bdf8;
+      --accent-hover: #0284c7;
+      --text: #e2e8f0;
+      --text-dim: #94a3b8;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --warn: #eab308;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'JetBrains Mono', monospace, sans-serif; }
+    body { background: var(--bg-main); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
+    
+    #sidebar { width: 340px; background: var(--bg-panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+    .panel-header { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: bold; background: var(--bg-sub); }
+    .resource-list { overflow-y: auto; flex: 1; padding: 12px; }
+    .res-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; background: var(--bg-main); padding: 8px 10px; border-radius: 4px; border: 1px solid var(--border); }
+    .res-rate { font-size: 11px; color: var(--accent); }
+
+    #main { flex: 1; display: flex; flex-direction: column; }
+    #topbar { height: 50px; background: var(--bg-panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; }
+    .btn { background: var(--accent); color: #000; border: none; padding: 6px 12px; font-weight: bold; cursor: pointer; border-radius: 4px; font-size: 12px; }
+    .btn:hover { background: var(--accent-hover); }
+    .btn-secondary { background: var(--bg-sub); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--border); }
+    .btn-danger { background: var(--danger); color: #fff; }
+
+    #content { flex: 1; display: flex; overflow: hidden; }
+    #factory-grid { flex: 1; padding: 16px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; align-content: start; }
+    
+    .card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .card.cached { border-color: var(--accent); background: #0e2439; }
+    .card-title { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: bold; }
+    .card-desc { font-size: 11px; color: var(--text-dim); }
+    .card-actions { display: flex; gap: 6px; margin-top: auto; }
+
+    #cache-modal, #cloud-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
+    .modal-box { background: var(--bg-panel); border: 1px solid var(--border); width: 450px; padding: 20px; border-radius: 6px; display: flex; flex-direction: column; gap: 14px; }
+    input[type="text"] { background: var(--bg-main); border: 1px solid var(--border); color: #fff; padding: 8px; border-radius: 4px; font-size: 12px; width: 100%; }
+  </style>
+</head>
+<body>
+
+  <!-- Panel Zasobów -->
+  <div id="sidebar">
+    <div class="panel-header">KONTENERY MAGAZYNOWE</div>
+    <div class="resource-list" id="res-container"></div>
+  </div>
+
+  <!-- Główny Widok -->
+  <div id="main">
+    <div id="topbar">
+      <div>
+        <span style="font-weight:bold; margin-right: 12px;">INCR-FACTORY [CORE v1.0]</span>
+        <span id="power-stat" style="font-size: 12px; color: var(--warn);">ENERGIA: 0 / 0 MW</span>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-secondary" onclick="openCacheModal()">📦 Zamknij w CACHE</button>
+        <button class="btn btn-secondary" onclick="openCloudModal()">☁️ GitHub Save</button>
+        <button class="btn" onclick="saveGame(true)">Zapisz</button>
+      </div>
+    </div>
+
+    <div id="content">
+      <div id="factory-grid"></div>
+    </div>
+  </div>
+
+  <!-- Modal Konwersji do Cache -->
+  <div id="cache-modal">
+    <div class="modal-box">
+      <h3>KOMPRESJA DO CACHE (BLACKBOX)</h3>
+      <p style="font-size:12px; color:var(--text-dim)">
+        Wybierz maszyny, które chcesz skondensować do pojedynczego obiektu.
+        Wszystkie wewnętrzne powiązania zostaną zredukowane do stałego bilansu I/O.
+      </p>
+      <input type="text" id="cache-name" placeholder="Nazwa modułu (np. Moduł Żelaza Tier 1)">
+      <div id="cache-selection-list" style="max-height: 200px; overflow-y: auto; font-size: 12px;"></div>
+      <div style="display:flex; justify-content: flex-end; gap: 8px;">
+        <button class="btn btn-secondary" onclick="closeCacheModal()">Anuluj</button>
+        <button class="btn" onclick="compileAndApplyCache()">Kompiluj Cache</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Chmury / GitHub Save -->
+  <div id="cloud-modal">
+    <div class="modal-box">
+      <h3>SYNCHRONIZACJA Z GITHUB GIST</h3>
+      <p style="font-size:12px; color:var(--text-dim)">Wpisz swój GitHub Personal Access Token (PAT z uprawnieniem 'gist') i ID Gista do zdalnego zapisu/odczytu.</p>
+      <input type="text" id="gh-token" placeholder="GitHub Token (ghp_...)">
+      <input type="text" id="gh-gist-id" placeholder="Gist ID (puste jeśli ma stworzyć nowy)">
+      <div style="display:flex; justify-content: flex-end; gap: 8px;">
+        <button class="btn btn-secondary" onclick="closeCloudModal()">Zamknij</button>
+        <button class="btn" onclick="loadFromGist()">Wczytaj</button>
+        <button class="btn" onclick="saveToGist()">Wyślij Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- DEFINICJA DANYCH ---
+    const RECIPES = {
+      mine_iron: { name: "Kopalnia Żelaza", in: {}, out: { iron_ore: 5 }, power: 2, cost: { iron_plate: 10 } },
+      smelt_iron: { name: "Piec Hutniczy Żelaza", in: { iron_ore: 4 }, out: { iron_plate: 2 }, power: 5, cost: { iron_plate: 20 } },
+      mine_copper: { name: "Kopalnia Miedzi", in: {}, out: { copper_ore: 5 }, power: 2, cost: { iron_plate: 10 } },
+      smelt_copper: { name: "Piec Hutniczy Miedzi", in: { copper_ore: 4 }, out: { copper_plate: 2 }, power: 5, cost: { iron_plate: 20 } },
+      craft_wire: { name: "Wytłaczarka Drutu", in: { copper_plate: 2 }, out: { wire: 4 }, power: 4, cost: { iron_plate: 30 } },
+      craft_circuit: { name: "Montownia Układów", in: { iron_plate: 2, wire: 4 }, out: { circuit: 1 }, power: 10, cost: { iron_plate: 50, wire: 50 } },
+      coal_gen: { name: "Generator Węglowy", in: {}, out: {}, genPower: 40, cost: { iron_plate: 25 } }
+    };
+
+    let state = {
+      resources: {
+        iron_ore: 0,
+        iron_plate: 50, // start na rozruch
+        copper_ore: 0,
+        copper_plate: 0,
+        wire: 0,
+        circuit: 0
+      },
+      machines: [], // { id, recipeKey, count }
+      cachedNodes: [] // { id, name, inputs, outputs, powerDemand, count }
+    };
+
+    // --- PĘTLA SYMULACJI (10 TICKÓW / SEKUNDA) ---
+    const TICK_RATE = 10;
+    let netRates = {};
+
+    function tick() {
+      // 1. Obliczanie bilansu energii
+      let powerProduced = 0;
+      let powerConsumed = 0;
+
+      state.machines.forEach(m => {
+        const r = RECIPES[m.recipeKey];
+        if (r.genPower) powerProduced += r.genPower * m.count;
+        if (r.power) powerConsumed += r.power * m.count;
+      });
+
+      state.cachedNodes.forEach(c => {
+        powerConsumed += c.powerDemand * c.count;
+      });
+
+      const powerRatio = powerConsumed === 0 ? 1 : Math.min(1, powerProduced / powerConsumed);
+      document.getElementById('power-stat').innerText = `ENERGIA: ${powerConsumed.toFixed(0)} / ${powerProduced.toFixed(0)} MW (${(powerRatio * 100).toFixed(0)}%)`;
+
+      let deltaCalc = {};
+      Object.keys(state.resources).forEach(k => deltaCalc[k] = 0);
+
+      // 2. Wyliczanie standardowych maszyn
+      state.machines.forEach(m => {
+        const r = RECIPES[m.recipeKey];
+        if (r.genPower) return; // Generator tylko produkuje moc
+
+        // Oblicz dostępność wejść
+        let limit = m.count * (1 / TICK_RATE) * powerRatio;
+        for (let inRes in r.in) {
+          let needed = r.in[inRes] * limit;
+          if (state.resources[inRes] < needed) {
+            limit = state.resources[inRes] / r.in[inRes];
+          }
+        }
+
+        if (limit > 0) {
+          for (let inRes in r.in) {
+            let used = r.in[inRes] * limit;
+            state.resources[inRes] -= used;
+            deltaCalc[inRes] -= used * TICK_RATE;
+          }
+          for (let outRes in r.out) {
+            let made = r.out[outRes] * limit;
+            state.resources[outRes] += made;
+            deltaCalc[outRes] += made * TICK_RATE;
+          }
+        }
+      });
+
+      // 3. Wyliczanie CACHED NODES (Blackbox O(1))
+      state.cachedNodes.forEach(c => {
+        let limit = c.count * (1 / TICK_RATE) * powerRatio;
+        for (let inRes in c.inputs) {
+          let needed = c.inputs[inRes] * limit;
+          if (state.resources[inRes] < needed) {
+            limit = state.resources[inRes] / c.inputs[inRes];
+          }
+        }
+        if (limit > 0) {
+          for (let inRes in c.inputs) {
+            let used = c.inputs[inRes] * limit;
+            state.resources[inRes] -= used;
+            deltaCalc[inRes] -= used * TICK_RATE;
+          }
+          for (let outRes in c.outputs) {
+            let made = c.outputs[outRes] * limit;
+            state.resources[outRes] += made;
+            deltaCalc[outRes] += made * TICK_RATE;
+          }
+        }
+      });
+
+      netRates = deltaCalc;
+      renderSidebar();
+    }
+
+    // --- MECHANIZM CACHOWANIA (BLACKBOX COMPILATION) ---
+    function compileAndApplyCache() {
+      const name = document.getElementById('cache-name').value || "Skompresowany Cache";
+      const checkboxes = document.querySelectorAll('.cache-select:checked');
+      
+      let selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.dataset.index));
+      if (selectedIndices.length === 0) return;
+
+      let netInput = {};
+      let netOutput = {};
+      let totalPower = 0;
+
+      // Wylicz wektor I/O dla wybranych maszyn
+      selectedIndices.sort((a,b) => b - a).forEach(idx => {
+        let m = state.machines[idx];
+        let r = RECIPES[m.recipeKey];
+
+        totalPower += (r.power || 0) * m.count;
+
+        for (let i in r.in) {
+          netInput[i] = (netInput[i] || 0) + r.in[i] * m.count;
+        }
+        for (let o in r.out) {
+          netOutput[o] = (netOutput[o] || 0) + r.out[o] * m.count;
+        }
+
+        // Usuń skompilowaną maszynę z mapy roboczej
+        state.machines.splice(idx, 1);
+      });
+
+      // Uprość zasoby pośrednie (anulowanie wejścia/wyjścia wewnątrz węzła)
+      for (let res in netOutput) {
+        if (netInput[res]) {
+          let min = Math.min(netOutput[res], netInput[res]);
+          netOutput[res] -= min;
+          netInput[res] -= min;
+          if (netOutput[res] === 0) delete netOutput[res];
+          if (netInput[res] === 0) delete netInput[res];
+        }
+      }
+
+      state.cachedNodes.push({
+        id: 'c_' + Date.now(),
+        name: name,
+        inputs: netInput,
+        outputs: netOutput,
+        powerDemand: totalPower,
+        count: 1
+      });
+
+      closeCacheModal();
+      renderFactory();
+    }
+
+    // --- KONTROLERY BUDOWY I RENDEROWANIA ---
+    function buildMachine(recipeKey) {
+      const r = RECIPES[recipeKey];
+      for (let costRes in r.cost) {
+        if ((state.resources[costRes] || 0) < r.cost[costRes]) return;
+      }
+      for (let costRes in r.cost) {
+        state.resources[costRes] -= r.cost[costRes];
+      }
+
+      let existing = state.machines.find(m => m.recipeKey === recipeKey);
+      if (existing) {
+        existing.count++;
+      } else {
+        state.machines.push({ id: 'm_' + Date.now(), recipeKey, count: 1 });
+      }
+      renderFactory();
+    }
+
+    function renderSidebar() {
+      const c = document.getElementById('res-container');
+      let html = '';
+      for (let k in state.resources) {
+        let rate = netRates[k] || 0;
+        let sign = rate > 0 ? `+${rate.toFixed(1)}` : `${rate.toFixed(1)}`;
+        html += `
+          <div class="res-row">
+            <div>
+              <div>${k.toUpperCase()}</div>
+              <div class="res-rate">${sign}/s</div>
+            </div>
+            <div style="font-weight:bold; font-size: 15px;">${Math.floor(state.resources[k])}</div>
+          </div>
+        `;
+      }
+      c.innerHTML = html;
+    }
+
+    function renderFactory() {
+      const grid = document.getElementById('factory-grid');
+      let html = '';
+
+      // Dostępne maszyny do postawienia
+      for (let key in RECIPES) {
+        const r = RECIPES[key];
+        let costStr = Object.entries(r.cost).map(([k,v]) => `${v} ${k}`).join(', ');
+        let ioStr = Object.entries(r.in).map(([k,v]) => `-${v} ${k}`).concat(
+                    Object.entries(r.out).map(([k,v]) => `+${v} ${k}`)).join(', ');
+
+        html += `
+          <div class="card">
+            <div class="card-title">${r.name}</div>
+            <div class="card-desc">I/O: ${ioStr || 'Generacja mocy: ' + r.genPower + ' MW'}</div>
+            <div class="card-desc">Pobór: ${r.power || 0} MW | Koszt: ${costStr}</div>
+            <div class="card-actions">
+              <button class="btn" onclick="buildMachine('${key}')">Postaw</button>
+            </div>
+          </div>
+        `;
+      }
+
+      // Istniejące Maszyny
+      state.machines.forEach(m => {
+        const r = RECIPES[m.recipeKey];
+        html += `
+          <div class="card">
+            <div class="card-title">
+              <span>${r.name}</span>
+              <span style="color:var(--accent)">x${m.count}</span>
+            </div>
+            <div class="card-desc">Maszyny w stanie operacyjnym</div>
+          </div>
+        `;
+      });
+
+      // Istniejące Cache Node'y
+      state.cachedNodes.forEach((c, i) => {
+        let inStr = Object.entries(c.inputs).map(([k,v]) => `-${v}/s ${k}`).join(', ');
+        let outStr = Object.entries(c.outputs).map(([k,v]) => `+${v}/s ${k}`).join(', ');
+        html += `
+          <div class="card cached">
+            <div class="card-title">
+              <span>📦 ${c.name}</span>
+              <span style="color:var(--accent)">x${c.count}</span>
+            </div>
+            <div class="card-desc" style="color:#6ee7b7">BILANS WEJŚCIA: ${inStr || 'Brak'}</div>
+            <div class="card-desc" style="color:#93c5fd">BILANS WYJŚCIA: ${outStr || 'Brak'}</div>
+            <div class="card-desc">Pobór mocy: ${c.powerDemand} MW</div>
+          </div>
+        `;
+      });
+
+      grid.innerHTML = html;
+    }
+
+    // --- MODALE ---
+    function openCacheModal() {
+      const list = document.getElementById('cache-selection-list');
+      list.innerHTML = state.machines.map((m, idx) => `
+        <label style="display:block; margin-bottom:6px;">
+          <input type="checkbox" class="cache-select" data-index="${idx}">
+          ${RECIPES[m.recipeKey].name} (x${m.count})
+        </label>
+      `).join('');
+      document.getElementById('cache-modal').style.display = 'flex';
+    }
+    function closeCacheModal() { document.getElementById('cache-modal').style.display = 'none'; }
+    function openCloudModal() { document.getElementById('cloud-modal').style.display = 'flex'; }
+    function closeCloudModal() { document.getElementById('cloud-modal').style.display = 'none'; }
+
+    // --- ZAPIS LOCALSTORAGE & GITHUB GIST ---
+    function saveGame(notify = false) {
+      localStorage.setItem('incr_factory_save', JSON.stringify(state));
+      if (notify) alert('Stan gry zapisany lokalnie.');
+    }
+
+    function loadGame() {
+      const data = localStorage.getItem('incr_factory_save');
+      if (data) {
+        state = JSON.parse(data);
+        renderFactory();
+      }
+    }
+
+    async function saveToGist() {
+      const token = document.getElementById('gh-token').value;
+      const gistId = document.getElementById('gh-gist-id').value;
+      if (!token) return alert('Wymagany GitHub Personal Access Token');
+
+      const payload = {
+        description: "Incremental Factory Cloud Save",
+        public: false,
+        files: {
+          "incremental_factory_save.json": {
+            content: JSON.stringify(state, null, 2)
+          }
+        }
+      };
+
+      const url = gistId ? `https://api.github.com/gists/${gistId}` : `https://api.github.com/gists`;
+      const method = gistId ? 'PATCH' : 'POST';
+
+      try {
+        const res = await fetch(url, {
+          method,
+          headers: { "Authorization": `token ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const d = await res.json();
+        if (d.id) {
+          document.getElementById('gh-gist-id').value = d.id;
+          alert(`Zapisano pomyślnie w chmurze! Gist ID: ${d.id}`);
+        }
+      } catch (e) {
+        alert('Błąd zapisu do GitHub Gist: ' + e.message);
+      }
+    }
+
+    async function loadFromGist() {
+      const token = document.getElementById('gh-token').value;
+      const gistId = document.getElementById('gh-gist-id').value;
+      if (!gistId) return alert('Podaj Gist ID aby wczytać dane.');
+
+      try {
+        const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+          headers: token ? { "Authorization": `token ${token}` } : {}
+        });
+        const d = await res.json();
+        const content = d.files["incremental_factory_save.json"].content;
+        state = JSON.parse(content);
+        renderFactory();
+        alert('Stan gry pobrany z chmury!');
+        closeCloudModal();
+      } catch (e) {
+        alert('Błąd wczytywania: ' + e.message);
+      }
+    }
+
+    // Auto-save co 30s i start pętli
+    loadGame();
+    setInterval(tick, 1000 / TICK_RATE);
+    setInterval(() => saveGame(false), 30000);
+    renderFactory();
+  </script>
+</body>
+</html>
