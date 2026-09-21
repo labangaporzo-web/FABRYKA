@@ -3,405 +3,1468 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Incremental Factory + Cache Engine</title>
+  <title>Incremental Factory - Canvas Graph & Cache System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    :root {
-      --bg-main: #0f141c;
-      --bg-panel: #18202c;
-      --bg-sub: #222d3d;
-      --border: #33445c;
-      --accent: #38bdf8;
-      --accent-hover: #0284c7;
-      --text: #e2e8f0;
-      --text-dim: #94a3b8;
-      --danger: #ef4444;
-      --success: #22c55e;
-      --warn: #eab308;
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'JetBrains Mono', monospace, sans-serif; }
-    body { background: var(--bg-main); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
-    
-    #sidebar { width: 340px; background: var(--bg-panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
-    .panel-header { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: bold; background: var(--bg-sub); }
-    .resource-list { overflow-y: auto; flex: 1; padding: 12px; }
-    .res-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; background: var(--bg-main); padding: 8px 10px; border-radius: 4px; border: 1px solid var(--border); }
-    .res-rate { font-size: 11px; color: var(--accent); }
-
-    #main { flex: 1; display: flex; flex-direction: column; }
-    #topbar { height: 50px; background: var(--bg-panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; }
-    .btn { background: var(--accent); color: #000; border: none; padding: 6px 12px; font-weight: bold; cursor: pointer; border-radius: 4px; font-size: 12px; }
-    .btn:hover { background: var(--accent-hover); }
-    .btn-secondary { background: var(--bg-sub); color: var(--text); border: 1px solid var(--border); }
-    .btn-secondary:hover { background: var(--border); }
-    .btn-danger { background: var(--danger); color: #fff; }
-
-    #content { flex: 1; display: flex; overflow: hidden; }
-    #factory-grid { flex: 1; padding: 16px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; align-content: start; }
-    
-    .card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
-    .card.cached { border-color: var(--accent); background: #0e2439; }
-    .card-title { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: bold; }
-    .card-desc { font-size: 11px; color: var(--text-dim); }
-    .card-actions { display: flex; gap: 6px; margin-top: auto; }
-
-    #cache-modal, #cloud-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
-    .modal-box { background: var(--bg-panel); border: 1px solid var(--border); width: 450px; padding: 20px; border-radius: 6px; display: flex; flex-direction: column; gap: 14px; }
-    input[type="text"] { background: var(--bg-main); border: 1px solid var(--border); color: #fff; padding: 8px; border-radius: 4px; font-size: 12px; width: 100%; }
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #07090e;
+      color: #e2e8f0;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+    #game-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: grab;
+    }
+    #game-canvas:active {
+      cursor: grabbing;
+    }
+    /* Custom HUD stylings matching the screenshot */
+    .hud-panel {
+      background: linear-gradient(180deg, rgba(32, 36, 44, 0.94) 0%, rgba(18, 21, 26, 0.98) 100%);
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.8), inset 0 1px 1px rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .hud-btn {
+      background: linear-gradient(180deg, #374151 0%, #1f2937 100%);
+      border: 1px solid #4b5563;
+      border-radius: 9999px;
+      transition: all 0.15s ease;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 2px 4px rgba(0,0,0,0.4);
+    }
+    .hud-btn:hover {
+      background: linear-gradient(180deg, #4b5563 0%, #374151 100%);
+      border-color: #60a5fa;
+      transform: translateY(-1px);
+    }
+    .hud-btn:active {
+      transform: translateY(1px);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.6);
+    }
+    .hud-btn.active {
+      background: linear-gradient(180deg, #0284c7 0%, #0369a1 100%);
+      border-color: #38bdf8;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.5);
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
   </style>
 </head>
-<body>
+<body class="relative w-full h-full">
 
-  <!-- Panel Zasobów -->
-  <div id="sidebar">
-    <div class="panel-header">KONTENERY MAGAZYNOWE</div>
-    <div class="resource-list" id="res-container"></div>
-  </div>
+  <!-- Główny ekran roboczy grafu węzłów -->
+  <canvas id="game-canvas"></canvas>
 
-  <!-- Główny Widok -->
-  <div id="main">
-    <div id="topbar">
-      <div>
-        <span style="font-weight:bold; margin-right: 12px;">INCR-FACTORY [CORE v1.0]</span>
-        <span id="power-stat" style="font-size: 12px; color: var(--warn);">ENERGIA: 0 / 0 MW</span>
+  <!-- Górny pasek statusu i wskaźników telemetrycznych -->
+  <div class="absolute top-3 left-4 right-4 flex items-center justify-between pointer-events-none z-10">
+    <div class="flex items-center gap-3 bg-black/70 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 pointer-events-auto">
+      <div class="flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span class="font-bold tracking-wider text-xs uppercase text-sky-400">Incremental Factory</span>
+        <span class="text-xs text-slate-400 font-mono">v1.2 (Sub-Factory Cache Engine)</span>
       </div>
-      <div style="display: flex; gap: 8px;">
-        <button class="btn btn-secondary" onclick="openCacheModal()">📦 Zamknij w CACHE</button>
-        <button class="btn btn-secondary" onclick="openCloudModal()">☁️ GitHub Save</button>
-        <button class="btn" onclick="saveGame(true)">Zapisz</button>
-      </div>
+      <div class="h-4 w-px bg-white/10"></div>
+      <div id="stats-nodes" class="text-xs text-slate-300 font-mono">Węzły: 0 (Cachowane: 0)</div>
+      <div class="h-4 w-px bg-white/10"></div>
+      <div id="stats-power" class="text-xs text-amber-300 font-mono">⚡ 0/0 MW</div>
+      <div class="h-4 w-px bg-white/10"></div>
+      <div id="stats-fps" class="text-xs text-emerald-300 font-mono">60 FPS</div>
     </div>
 
-    <div id="content">
-      <div id="factory-grid"></div>
+    <div class="flex items-center gap-2 pointer-events-auto">
+      <button id="btn-sound" class="bg-black/70 hover:bg-slate-800 text-xs px-3 py-2 rounded-lg border border-white/10 text-slate-300 transition-colors">
+        🔊 Dźwięk: WŁ
+      </button>
+      <button id="btn-reset-view" class="bg-black/70 hover:bg-slate-800 text-xs px-3 py-2 rounded-lg border border-white/10 text-slate-300 transition-colors">
+        🎯 Wyśrodkuj kamerę
+      </button>
     </div>
   </div>
 
-  <!-- Modal Konwersji do Cache -->
-  <div id="cache-modal">
-    <div class="modal-box">
-      <h3>KOMPRESJA DO CACHE (BLACKBOX)</h3>
-      <p style="font-size:12px; color:var(--text-dim)">
-        Wybierz maszyny, które chcesz skondensować do pojedynczego obiektu.
-        Wszystkie wewnętrzne powiązania zostaną zredukowane do stałego bilansu I/O.
+  <!-- Boczny panel zasobów globalnych / magazynu -->
+  <div id="warehouse-drawer" class="absolute top-16 left-4 w-64 bg-black/80 backdrop-blur-md border border-white/10 rounded-xl p-3 z-10 hidden flex flex-col gap-2 max-h-[70vh] overflow-y-auto">
+    <div class="flex justify-between items-center border-b border-white/10 pb-2">
+      <span class="text-xs font-bold uppercase tracking-wider text-sky-400">Magazyn Główny</span>
+      <button onclick="toggleWarehouseDrawer()" class="text-slate-400 hover:text-white text-sm">✕</button>
+    </div>
+    <div id="warehouse-items" class="flex flex-col gap-1.5 text-xs font-mono">
+      <!-- Generowane dynamicznie -->
+    </div>
+  </div>
+
+  <!-- DOLNY PANEL HUD (Wzorowany 1:1 na układzie z gry z dolnym zaokrąglonym paskiem) -->
+  <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 pointer-events-auto">
+    <div class="hud-panel flex items-center gap-2 px-4 py-2 rounded-full shadow-2xl">
+      <!-- Przyciski kategorii -->
+      <button onclick="selectCategory('extraction')" id="cat-extraction" class="hud-btn px-4 py-1.5 text-xs font-medium text-slate-200">
+        Extraction(<span id="count-ext">0</span>)
+      </button>
+      <button onclick="selectCategory('production')" id="cat-production" class="hud-btn px-4 py-1.5 text-xs font-medium text-slate-200">
+        Production(<span id="count-prod">0</span>)
+      </button>
+      <button onclick="selectCategory('logistics')" id="cat-logistics" class="hud-btn px-4 py-1.5 text-xs font-medium text-slate-200">
+        Node(<span id="count-nodes">0</span>)
+      </button>
+      <button onclick="toggleWarehouseDrawer()" id="cat-warehouse" class="hud-btn px-4 py-1.5 text-xs font-medium text-slate-200">
+        Warehouse(<span id="count-wh">0</span>)
+      </button>
+
+      <div class="h-5 w-px bg-white/20 mx-1"></div>
+
+      <!-- SPECJALNY PRZYCISK: KREATOR CACHE / BLACKBOX -->
+      <button onclick="activateCacheTool()" id="btn-cache-tool" class="hud-btn px-4 py-1.5 text-xs font-semibold text-amber-300 border-amber-500/50 hover:border-amber-400">
+        📦 Cache Sub-Factory
+      </button>
+
+      <!-- Zapis w chmurze / Gist -->
+      <button onclick="openCloudModal()" class="hud-btn px-3 py-1.5 text-xs font-medium text-cyan-300 border-cyan-500/40">
+        ☁️ GitHub Save
+      </button>
+    </div>
+  </div>
+
+  <!-- Pływające menu wyboru jednostki do postawienia (po kliknięciu kategorii) -->
+  <div id="build-palette" class="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-slate-900/95 backdrop-blur-md border border-slate-700 rounded-2xl p-3 shadow-2xl z-20 hidden flex gap-3">
+    <!-- Generowane dynamicznie w zależności od kategorii -->
+  </div>
+
+  <!-- Modal tworzenia Cache / Kompresji podsieci -->
+  <div id="modal-cache" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-amber-500/50 rounded-2xl p-6 max-w-lg w-full shadow-2xl shadow-amber-950/40">
+      <div class="flex items-center gap-3 text-amber-400 mb-3">
+        <span class="text-2xl">📦</span>
+        <h3 class="text-lg font-bold">Kompilacja Podsieci do CACHE (Blackbox)</h3>
+      </div>
+      <p class="text-xs text-slate-300 leading-relaxed mb-4">
+        Zamienia zaznaczone węzły i kable w pojedynczy, skompresowany węzeł o stałym bilansie I/O.
+        Wewnętrzna złożoność grafu zostaje zredukowana do jednej stałej operacji <b>O(1)</b> na tick, eliminując spadki FPS.
       </p>
-      <input type="text" id="cache-name" placeholder="Nazwa modułu (np. Moduł Żelaza Tier 1)">
-      <div id="cache-selection-list" style="max-height: 200px; overflow-y: auto; font-size: 12px;"></div>
-      <div style="display:flex; justify-content: flex-end; gap: 8px;">
-        <button class="btn btn-secondary" onclick="closeCacheModal()">Anuluj</button>
-        <button class="btn" onclick="compileAndApplyCache()">Kompiluj Cache</button>
+
+      <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 mb-4 text-xs font-mono space-y-2">
+        <div class="text-slate-400">Węzłów do kompresji: <span id="cache-selected-count" class="text-white font-bold">0</span></div>
+        <div class="text-red-400">Wymagane zasoby netto (Input): <span id="cache-net-in" class="text-white">-</span></div>
+        <div class="text-emerald-400">Produkcja netto (Output): <span id="cache-net-out" class="text-white">-</span></div>
+        <div class="text-amber-400">Zapotrzebowanie na energię: <span id="cache-net-power" class="text-white">0 MW</span></div>
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-xs font-medium text-slate-300 mb-1">Nazwa modułu Cache</label>
+        <input id="cache-custom-name" type="text" value="Moduł Mikroprocesorów T1" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-400">
+      </div>
+
+      <div class="flex justify-end gap-2">
+        <button onclick="closeCacheModal()" class="px-4 py-2 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300">Anuluj</button>
+        <button onclick="commitCacheCluster()" class="px-4 py-2 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-colors">Utwórz Cache Node</button>
       </div>
     </div>
   </div>
 
-  <!-- Modal Chmury / GitHub Save -->
-  <div id="cloud-modal">
-    <div class="modal-box">
-      <h3>SYNCHRONIZACJA Z GITHUB GIST</h3>
-      <p style="font-size:12px; color:var(--text-dim)">Wpisz swój GitHub Personal Access Token (PAT z uprawnieniem 'gist') i ID Gista do zdalnego zapisu/odczytu.</p>
-      <input type="text" id="gh-token" placeholder="GitHub Token (ghp_...)">
-      <input type="text" id="gh-gist-id" placeholder="Gist ID (puste jeśli ma stworzyć nowy)">
-      <div style="display:flex; justify-content: flex-end; gap: 8px;">
-        <button class="btn btn-secondary" onclick="closeCloudModal()">Zamknij</button>
-        <button class="btn" onclick="loadFromGist()">Wczytaj</button>
-        <button class="btn" onclick="saveToGist()">Wyślij Save</button>
+  <!-- Modal Chmury / GitHub Save / Import / Export -->
+  <div id="modal-cloud" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-sky-500/40 rounded-2xl p-6 max-w-lg w-full shadow-2xl">
+      <div class="flex items-center gap-3 text-sky-400 mb-3">
+        <span class="text-2xl">☁️</span>
+        <h3 class="text-lg font-bold">Zapis w Chmurze / GitHub Gist</h3>
+      </div>
+      <p class="text-xs text-slate-400 mb-4 leading-relaxed">
+        Synchronizuj postęp fabryki z prywatnym GitHub Gist lub eksportuj kod zapisu JSON.
+      </p>
+
+      <div class="space-y-3 text-xs mb-4">
+        <div>
+          <label class="block text-slate-300 mb-1">GitHub Personal Access Token (PAT z uprawnieniem 'gist')</label>
+          <input id="gh-token" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white">
+        </div>
+        <div>
+          <label class="block text-slate-300 mb-1">Gist ID (pozostaw puste aby utworzyć nowy)</label>
+          <input id="gh-gist-id" type="text" placeholder="e.g. 7f8c9b0e123456..." class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white">
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-2 justify-between border-t border-slate-800 pt-4">
+        <div class="flex gap-2">
+          <button onclick="exportSaveJSON()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-mono">📋 Kopiuj JSON</button>
+          <button onclick="importSavePrompt()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-mono">📥 Wklej JSON</button>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="closeCloudModal()" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg text-xs">Zamknij</button>
+          <button onclick="loadFromGistCloud()" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-bold">Pobierz z Gist</button>
+          <button onclick="saveToGistCloud()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold">Wyślij do Gist</button>
+        </div>
       </div>
     </div>
+  </div>
+
+  <!-- Dymek informacyjny / Notyfikacje HUD -->
+  <div id="toast" class="fixed top-14 left-1/2 transform -translate-x-1/2 bg-sky-500/90 text-slate-950 font-bold px-4 py-2 rounded-full text-xs shadow-lg transition-opacity duration-300 opacity-0 pointer-events-none z-50">
+    Powiadomienie
   </div>
 
   <script>
-    // --- DEFINICJA DANYCH ---
-    const RECIPES = {
-      mine_iron: { name: "Kopalnia Żelaza", in: {}, out: { iron_ore: 5 }, power: 2, cost: { iron_plate: 10 } },
-      smelt_iron: { name: "Piec Hutniczy Żelaza", in: { iron_ore: 4 }, out: { iron_plate: 2 }, power: 5, cost: { iron_plate: 20 } },
-      mine_copper: { name: "Kopalnia Miedzi", in: {}, out: { copper_ore: 5 }, power: 2, cost: { iron_plate: 10 } },
-      smelt_copper: { name: "Piec Hutniczy Miedzi", in: { copper_ore: 4 }, out: { copper_plate: 2 }, power: 5, cost: { iron_plate: 20 } },
-      craft_wire: { name: "Wytłaczarka Drutu", in: { copper_plate: 2 }, out: { wire: 4 }, power: 4, cost: { iron_plate: 30 } },
-      craft_circuit: { name: "Montownia Układów", in: { iron_plate: 2, wire: 4 }, out: { circuit: 1 }, power: 10, cost: { iron_plate: 50, wire: 50 } },
-      coal_gen: { name: "Generator Węglowy", in: {}, out: {}, genPower: 40, cost: { iron_plate: 25 } }
+    // --- SYSTEM DŹWIĘKOWY SYNTEZY (Web Audio API - bez zewnętrznych plików) ---
+    let audioCtx = null;
+    let soundEnabled = true;
+
+    function playTone(freq, type = 'sine', duration = 0.08, vol = 0.1) {
+      if (!soundEnabled) return;
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {
+        // Ignoruj blokady autoplay przeglądarek
+      }
+    }
+
+    document.getElementById('btn-sound').addEventListener('click', () => {
+      soundEnabled = !soundEnabled;
+      document.getElementById('btn-sound').innerText = `🔊 Dźwięk: ${soundEnabled ? 'WŁ' : 'WYŁ'}`;
+    });
+
+    function showToast(msg, duration = 2500) {
+      const toast = document.getElementById('toast');
+      toast.innerText = msg;
+      toast.style.opacity = '1';
+      setTimeout(() => { toast.style.opacity = '0'; }, duration);
+    }
+
+    // --- DEFINICJA PRZEPISÓW, WĘZŁÓW I ZASOBÓW ---
+    const RESOURCES = {
+      iron_ore: { name: 'Ruda Żelaza', color: '#ea580c' },
+      copper_ore: { name: 'Ruda Miedzi', color: '#d97706' },
+      coal: { name: 'Węgiel', color: '#475569' },
+      silicon: { name: 'Krzem', color: '#38bdf8' },
+      iron_plate: { name: 'Sztaba Żelaza', color: '#94a3b8' },
+      copper_wire: { name: 'Drut Miedziany', color: '#fb923c' },
+      microchip: { name: 'Mikroukład T1', color: '#10b981' },
+      processor: { name: 'Zaawansowany Procesor', color: '#a855f7' }
     };
 
-    let state = {
-      resources: {
-        iron_ore: 0,
-        iron_plate: 50, // start na rozruch
-        copper_ore: 0,
-        copper_plate: 0,
-        wire: 0,
-        circuit: 0
+    const NODE_TEMPLATES = {
+      // EXTRACTION
+      miner_iron: {
+        category: 'extraction',
+        name: 'Kopalnia Żelaza',
+        color: '#c2410c', // pomarańczowo-rdzawy
+        inputs: [],
+        outputs: ['iron_ore'],
+        rate: 2.0, // 2 items / sec
+        power: -2, // pobór 2 MW
+        cost: 10,
+        shape: 'pill'
       },
-      machines: [], // { id, recipeKey, count }
-      cachedNodes: [] // { id, name, inputs, outputs, powerDemand, count }
+      miner_copper: {
+        category: 'extraction',
+        name: 'Kopalnia Miedzi',
+        color: '#b45309', // miedziany
+        inputs: [],
+        outputs: ['copper_ore'],
+        rate: 2.0,
+        power: -2,
+        cost: 10,
+        shape: 'pill'
+      },
+      miner_coal: {
+        category: 'extraction',
+        name: 'Kopalnia Węgla',
+        color: '#334155',
+        inputs: [],
+        outputs: ['coal'],
+        rate: 1.5,
+        power: -1,
+        cost: 15,
+        shape: 'pill'
+      },
+      // PRODUCTION
+      smelter_iron: {
+        category: 'production',
+        name: 'Piec Hutniczy Żelaza',
+        color: '#0284c7', // błękitno-cyanowy jak w grze
+        inputs: ['iron_ore'],
+        outputs: ['iron_plate'],
+        rate: 1.0,
+        power: -5,
+        cost: 25,
+        shape: 'rect'
+      },
+      wire_assembler: {
+        category: 'production',
+        name: 'Wytłaczarka Kabli',
+        color: '#7c3aed', // fiolet
+        inputs: ['copper_ore'],
+        outputs: ['copper_wire'],
+        rate: 1.5,
+        power: -4,
+        cost: 30,
+        shape: 'rect'
+      },
+      chip_fabricator: {
+        category: 'production',
+        name: 'Montownia Układów T1',
+        color: '#059669', // zielony
+        inputs: ['iron_plate', 'copper_wire'],
+        outputs: ['microchip'],
+        rate: 0.8,
+        power: -8,
+        cost: 60,
+        shape: 'rect'
+      },
+      processor_core: {
+        category: 'production',
+        name: 'Węzeł Obliczeniowy',
+        color: '#e11d48', // amarantowy
+        inputs: ['microchip', 'copper_wire'],
+        outputs: ['processor'],
+        rate: 0.4,
+        power: -15,
+        cost: 120,
+        shape: 'rect'
+      },
+      power_plant: {
+        category: 'production',
+        name: 'Elektrownia Węglowa',
+        color: '#eab308', // żółty
+        inputs: ['coal'],
+        outputs: [],
+        rate: 0.5, // spala 0.5 węgla/s
+        power: 45, // generuje 45 MW
+        cost: 50,
+        shape: 'rect'
+      },
+      // LOGISTICS & ROUTING
+      splitter: {
+        category: 'logistics',
+        name: 'Rozdzielacz 1:2',
+        color: '#1e293b',
+        inputs: ['*'],
+        outputs: ['*', '*'],
+        rate: 10,
+        power: 0,
+        cost: 5,
+        shape: 'small_circle'
+      },
+      merger: {
+        category: 'logistics',
+        name: 'Łącznik Przesyłowy',
+        color: '#1e293b',
+        inputs: ['*', '*'],
+        outputs: ['*'],
+        rate: 10,
+        power: 0,
+        cost: 5,
+        shape: 'small_circle'
+      },
+      terminal_sink: {
+        category: 'logistics',
+        name: 'Terminal Magazynowy',
+        color: '#475569',
+        inputs: ['*'],
+        outputs: [],
+        rate: 20,
+        power: 0,
+        cost: 10,
+        shape: 'terminal'
+      }
     };
 
-    // --- PĘTLA SYMULACJI (10 TICKÓW / SEKUNDA) ---
-    const TICK_RATE = 10;
-    let netRates = {};
+    // --- STAN GRY I STRUKTURA GRAFU ---
+    let camera = {
+      x: window.innerWidth / 2 - 250,
+      y: window.innerHeight / 2 - 200,
+      zoom: 1.0,
+      isPanning: false,
+      startX: 0,
+      startY: 0
+    };
 
-    function tick() {
-      // 1. Obliczanie bilansu energii
+    let globalStorage = {
+      iron_ore: 0,
+      copper_ore: 0,
+      coal: 0,
+      silicon: 0,
+      iron_plate: 150, // zasób startowy
+      copper_wire: 120,
+      microchip: 30,
+      processor: 0
+    };
+
+    let nodes = [];
+    let wires = [];
+    let particles = []; // Wizualne impulsy/pakiety na kablach
+
+    // Narzędzia i tryby interakcji
+    let activeTool = 'select'; // 'select', 'place', 'wire', 'cache_select'
+    let selectedTemplateKey = null;
+    let selectedNodeIds = new Set();
+    let wiringSource = null; // { nodeId, portIndex, isOutput, x, y }
+    let marquee = { active: false, startX: 0, startY: 0, currentX: 0, currentY: 0 };
+    let draggedNode = null;
+    let dragOffset = { x: 0, y: 0 };
+
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      ctx.scale(dpr, dpr);
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Transformacje współrzędnych ekran <-> świat wirtualny
+    function screenToWorld(sx, sy) {
+      return {
+        x: (sx - camera.x) / camera.zoom,
+        y: (sy - camera.y) / camera.zoom
+      };
+    }
+
+    function worldToScreen(wx, wy) {
+      return {
+        x: wx * camera.zoom + camera.x,
+        y: wy * camera.zoom + camera.y
+      };
+    }
+
+    function initializeStarterFactory() {
+      // Konstrukcja fabryki demonstracyjnej z układem przypominającym zrzut ekranu
+      nodes = [
+        // Lewa gałąź: Kopalnie rudy
+        createNodeInstance('miner_iron', -300, -100),
+        createNodeInstance('miner_iron', -300, -40),
+        createNodeInstance('miner_iron', -300, 20),
+        createNodeInstance('miner_copper', -300, 90),
+        createNodeInstance('miner_copper', -300, 150),
+        createNodeInstance('miner_coal', -300, 220),
+
+        // Piece i hutnictwo
+        createNodeInstance('smelter_iron', -140, -80),
+        createNodeInstance('smelter_iron', -140, 0),
+        createNodeInstance('wire_assembler', -140, 100),
+        createNodeInstance('power_plant', -140, 210),
+
+        // Montownia mikroprocesorów
+        createNodeInstance('chip_fabricator', 60, 0),
+
+        // Zaawansowany procesor
+        createNodeInstance('processor_core', 240, 40),
+
+        // Terminal końcowy
+        createNodeInstance('terminal_sink', 420, 40)
+      ];
+
+      // Połączenia przewodowe (Bezier)
+      connectNodes(nodes[0].id, 0, nodes[6].id, 0); // ruda -> piec
+      connectNodes(nodes[1].id, 0, nodes[6].id, 0);
+      connectNodes(nodes[2].id, 0, nodes[7].id, 0);
+      connectNodes(nodes[3].id, 0, nodes[8].id, 0); // miedź -> kable
+      connectNodes(nodes[4].id, 0, nodes[8].id, 0);
+      connectNodes(nodes[5].id, 0, nodes[9].id, 0); // węgiel -> elektrownia
+
+      connectNodes(nodes[6].id, 0, nodes[10].id, 0); // płyty żelazne -> montownia ukł
+      connectNodes(nodes[8].id, 0, nodes[10].id, 1); // drut -> montownia ukł
+
+      connectNodes(nodes[10].id, 0, nodes[11].id, 0); // scalak -> procesor
+      connectNodes(nodes[8].id, 0, nodes[11].id, 1); // drut -> procesor
+      connectNodes(nodes[11].id, 0, nodes[12].id, 0); // wyjście do terminala
+
+      updateCountsHUD();
+      showToast("Fabryka załadowana. Zaznacz obszar węzłów aby przetestować CACHE!");
+    }
+
+    function createNodeInstance(templateKey, x, y, customCacheData = null) {
+      if (templateKey === 'cached_blackbox') {
+        return {
+          id: 'node_' + Math.random().toString(36).substr(2, 9),
+          templateKey: 'cached_blackbox',
+          name: customCacheData.name,
+          x, y,
+          width: 80,
+          height: 60,
+          color: '#8b5cf6', // Purpurowy bloczek jak w grze
+          shape: 'rect',
+          isCache: true,
+          cacheData: customCacheData,
+          inputs: customCacheData.inputPortList,
+          outputs: customCacheData.outputPortList,
+          bufferIn: {},
+          bufferOut: {},
+          lastActive: 1.0
+        };
+      }
+
+      const t = NODE_TEMPLATES[templateKey];
+      let width = 42;
+      let height = 36;
+      if (t.shape === 'pill') { width = 46; height = 28; }
+      if (t.shape === 'small_circle') { width = 24; height = 24; }
+      if (t.shape === 'terminal') { width = 34; height = 50; }
+
+      return {
+        id: 'node_' + Math.random().toString(36).substr(2, 9),
+        templateKey,
+        name: t.name,
+        x, y,
+        width,
+        height,
+        color: t.color,
+        shape: t.shape,
+        isCache: false,
+        inputs: [...t.inputs],
+        outputs: [...t.outputs],
+        bufferIn: {},
+        bufferOut: {},
+        lastActive: 1.0
+      };
+    }
+
+    function connectNodes(fromNodeId, fromPortIdx, toNodeId, toPortIdx) {
+      // Sprawdź duplikaty
+      const exists = wires.some(w => w.fromNode === fromNodeId && w.fromPort === fromPortIdx && w.toNode === toNodeId && w.toPort === toPortIdx);
+      if (exists) return;
+
+      const fromNode = nodes.find(n => n.id === fromNodeId);
+      const toNode = nodes.find(n => n.id === toNodeId);
+      if (!fromNode || !toNode) return;
+
+      // Dobierz kolor kabla
+      let cableColor = '#22c55e'; // default limonka
+      const outType = fromNode.outputs[fromPortIdx];
+      if (outType === 'iron_ore' || outType === 'iron_plate') cableColor = '#f97316'; // pomarańcz
+      if (outType === 'copper_ore' || outType === 'copper_wire') cableColor = '#06b6d4'; // cyan
+      if (outType === 'microchip' || outType === 'processor') cableColor = '#a855f7'; // fiolet
+
+      wires.push({
+        id: 'wire_' + Math.random().toString(36).substr(2, 9),
+        fromNode: fromNodeId,
+        fromPort: fromPortIdx,
+        toNode: toNodeId,
+        toPort: toPortIdx,
+        color: cableColor
+      });
+      playTone(600, 'triangle', 0.05, 0.08);
+    }
+
+    function getPortWorldPosition(node, isOutput, portIdx) {
+      if (isOutput) {
+        const total = node.outputs.length;
+        const spacing = node.height / (total + 1);
+        return {
+          x: node.x + node.width,
+          y: node.y + spacing * (portIdx + 1)
+        };
+      } else {
+        const total = node.inputs.length;
+        const spacing = node.height / (total + 1);
+        return {
+          x: node.x,
+          y: node.y + spacing * (portIdx + 1)
+        };
+      }
+    }
+
+    // --- PĘTLA SYMULACJI FABRYKI (10 TICKÓW NA SEKUNDĘ) ---
+    const TICK_INTERVAL = 100; // ms
+    let lastTickTime = performance.now();
+    let statsTotalPowerProd = 0;
+    let statsTotalPowerCons = 0;
+
+    function gameTick() {
+      const dt = 0.1; // 1/10 sekundy
       let powerProduced = 0;
       let powerConsumed = 0;
 
-      state.machines.forEach(m => {
-        const r = RECIPES[m.recipeKey];
-        if (r.genPower) powerProduced += r.genPower * m.count;
-        if (r.power) powerConsumed += r.power * m.count;
-      });
-
-      state.cachedNodes.forEach(c => {
-        powerConsumed += c.powerDemand * c.count;
-      });
-
-      const powerRatio = powerConsumed === 0 ? 1 : Math.min(1, powerProduced / powerConsumed);
-      document.getElementById('power-stat').innerText = `ENERGIA: ${powerConsumed.toFixed(0)} / ${powerProduced.toFixed(0)} MW (${(powerRatio * 100).toFixed(0)}%)`;
-
-      let deltaCalc = {};
-      Object.keys(state.resources).forEach(k => deltaCalc[k] = 0);
-
-      // 2. Wyliczanie standardowych maszyn
-      state.machines.forEach(m => {
-        const r = RECIPES[m.recipeKey];
-        if (r.genPower) return; // Generator tylko produkuje moc
-
-        // Oblicz dostępność wejść
-        let limit = m.count * (1 / TICK_RATE) * powerRatio;
-        for (let inRes in r.in) {
-          let needed = r.in[inRes] * limit;
-          if (state.resources[inRes] < needed) {
-            limit = state.resources[inRes] / r.in[inRes];
-          }
-        }
-
-        if (limit > 0) {
-          for (let inRes in r.in) {
-            let used = r.in[inRes] * limit;
-            state.resources[inRes] -= used;
-            deltaCalc[inRes] -= used * TICK_RATE;
-          }
-          for (let outRes in r.out) {
-            let made = r.out[outRes] * limit;
-            state.resources[outRes] += made;
-            deltaCalc[outRes] += made * TICK_RATE;
-          }
-        }
-      });
-
-      // 3. Wyliczanie CACHED NODES (Blackbox O(1))
-      state.cachedNodes.forEach(c => {
-        let limit = c.count * (1 / TICK_RATE) * powerRatio;
-        for (let inRes in c.inputs) {
-          let needed = c.inputs[inRes] * limit;
-          if (state.resources[inRes] < needed) {
-            limit = state.resources[inRes] / c.inputs[inRes];
-          }
-        }
-        if (limit > 0) {
-          for (let inRes in c.inputs) {
-            let used = c.inputs[inRes] * limit;
-            state.resources[inRes] -= used;
-            deltaCalc[inRes] -= used * TICK_RATE;
-          }
-          for (let outRes in c.outputs) {
-            let made = c.outputs[outRes] * limit;
-            state.resources[outRes] += made;
-            deltaCalc[outRes] += made * TICK_RATE;
-          }
-        }
-      });
-
-      netRates = deltaCalc;
-      renderSidebar();
-    }
-
-    // --- MECHANIZM CACHOWANIA (BLACKBOX COMPILATION) ---
-    function compileAndApplyCache() {
-      const name = document.getElementById('cache-name').value || "Skompresowany Cache";
-      const checkboxes = document.querySelectorAll('.cache-select:checked');
-      
-      let selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.dataset.index));
-      if (selectedIndices.length === 0) return;
-
-      let netInput = {};
-      let netOutput = {};
-      let totalPower = 0;
-
-      // Wylicz wektor I/O dla wybranych maszyn
-      selectedIndices.sort((a,b) => b - a).forEach(idx => {
-        let m = state.machines[idx];
-        let r = RECIPES[m.recipeKey];
-
-        totalPower += (r.power || 0) * m.count;
-
-        for (let i in r.in) {
-          netInput[i] = (netInput[i] || 0) + r.in[i] * m.count;
-        }
-        for (let o in r.out) {
-          netOutput[o] = (netOutput[o] || 0) + r.out[o] * m.count;
-        }
-
-        // Usuń skompilowaną maszynę z mapy roboczej
-        state.machines.splice(idx, 1);
-      });
-
-      // Uprość zasoby pośrednie (anulowanie wejścia/wyjścia wewnątrz węzła)
-      for (let res in netOutput) {
-        if (netInput[res]) {
-          let min = Math.min(netOutput[res], netInput[res]);
-          netOutput[res] -= min;
-          netInput[res] -= min;
-          if (netOutput[res] === 0) delete netOutput[res];
-          if (netInput[res] === 0) delete netInput[res];
+      // Bilans energetyczny
+      for (let n of nodes) {
+        if (n.isCache) {
+          if (n.cacheData.power < 0) powerConsumed += Math.abs(n.cacheData.power);
+          else powerProduced += n.cacheData.power;
+        } else {
+          const t = NODE_TEMPLATES[n.templateKey];
+          if (t.power < 0) powerConsumed += Math.abs(t.power);
+          else powerProduced += t.power;
         }
       }
 
-      state.cachedNodes.push({
-        id: 'c_' + Date.now(),
-        name: name,
-        inputs: netInput,
-        outputs: netOutput,
-        powerDemand: totalPower,
-        count: 1
+      statsTotalPowerProd = powerProduced;
+      statsTotalPowerCons = powerConsumed;
+      const powerRatio = powerConsumed === 0 ? 1 : Math.min(1.0, powerProduced / powerConsumed);
+
+      document.getElementById('stats-power').innerText = `⚡ ${powerConsumed.toFixed(0)}/${powerProduced.toFixed(0)} MW (${(powerRatio * 100).toFixed(0)}%)`;
+
+      // 1. Ekstrakcja / Produkcja dla zwykłych węzłów
+      for (let n of nodes) {
+        if (n.isCache) {
+          // OBRÓBKA CACHE (Złożoność O(1))
+          let runFactor = powerRatio;
+          // Sprawdź czy węzeł posiada surowce wejściowe
+          for (let reqRes in n.cacheData.netInputs) {
+            const needed = n.cacheData.netInputs[reqRes] * dt * powerRatio;
+            const current = n.bufferIn[reqRes] || 0;
+            if (current < needed) {
+              runFactor = Math.min(runFactor, current / Math.max(0.001, needed));
+            }
+          }
+
+          if (runFactor > 0.05) {
+            // Skonsumuj wejście z bufora
+            for (let reqRes in n.cacheData.netInputs) {
+              const consumed = n.cacheData.netInputs[reqRes] * dt * runFactor;
+              n.bufferIn[reqRes] = Math.max(0, (n.bufferIn[reqRes] || 0) - consumed);
+            }
+            // Wygeneruj wyjście do bufora wyjściowego
+            for (let outRes in n.cacheData.netOutputs) {
+              const produced = n.cacheData.netOutputs[outRes] * dt * runFactor;
+              n.bufferOut[outRes] = (n.bufferOut[outRes] || 0) + produced;
+            }
+          }
+          n.lastActive = runFactor;
+          continue;
+        }
+
+        const t = NODE_TEMPLATES[n.templateKey];
+        if (t.category === 'extraction') {
+          // Kopalnie wytwarzają zasób wprost do portu wyjściowego
+          const res = t.outputs[0];
+          const amount = t.rate * dt * powerRatio;
+          n.bufferOut[res] = (n.bufferOut[res] || 0) + amount;
+          n.lastActive = powerRatio;
+        } else if (t.category === 'production') {
+          if (n.templateKey === 'power_plant') {
+            // Zużywa węgiel z wejścia
+            const coalNeeded = t.rate * dt;
+            if ((n.bufferIn['coal'] || 0) >= coalNeeded) {
+              n.bufferIn['coal'] -= coalNeeded;
+              n.lastActive = 1.0;
+            } else {
+              n.lastActive = 0.0;
+            }
+          } else {
+            // Standardowa fabryka: sprawdź wejścia
+            let canCraft = true;
+            for (let inType of t.inputs) {
+              if ((n.bufferIn[inType] || 0) < t.rate * dt) {
+                canCraft = false;
+                break;
+              }
+            }
+            if (canCraft && powerRatio > 0.1) {
+              for (let inType of t.inputs) {
+                n.bufferIn[inType] -= t.rate * dt;
+              }
+              const outType = t.outputs[0];
+              n.bufferOut[outType] = (n.bufferOut[outType] || 0) + t.rate * dt;
+              n.lastActive = 1.0;
+            } else {
+              n.lastActive = 0.0;
+            }
+          }
+        } else if (t.category === 'logistics' && n.templateKey === 'terminal_sink') {
+          // Pobiera wszystko z bufora do głównego magazynu
+          for (let k in n.bufferIn) {
+            const count = n.bufferIn[k];
+            if (count > 0) {
+              globalStorage[k] = (globalStorage[k] || 0) + count;
+              n.bufferIn[k] = 0;
+            }
+          }
+        }
+      }
+
+      // 2. Transfer przez kable (wires)
+      for (let w of wires) {
+        const fromNode = nodes.find(n => n.id === w.fromNode);
+        const toNode = nodes.find(n => n.id === w.toNode);
+        if (!fromNode || !toNode) continue;
+
+        let resType = fromNode.outputs[w.fromPort];
+        if (resType === '*') {
+          // Pobierz dowolny dostępny zasób
+          const keys = Object.keys(fromNode.bufferOut);
+          resType = keys.length > 0 ? keys[0] : null;
+        }
+        if (!resType) continue;
+
+        const avail = fromNode.bufferOut[resType] || 0;
+        if (avail > 0.05) {
+          const transferAmt = Math.min(avail, 0.4);
+          fromNode.bufferOut[resType] -= transferAmt;
+          toNode.bufferIn[resType] = (toNode.bufferIn[resType] || 0) + transferAmt;
+
+          // Dodaj animowaną cząstkę na kablu
+          if (Math.random() < 0.35) {
+            particles.push({
+              wireId: w.id,
+              progress: 0,
+              speed: 0.035 + Math.random() * 0.02,
+              color: w.color
+            });
+          }
+        }
+      }
+
+      updateWarehouseView();
+    }
+    setInterval(gameTick, TICK_INTERVAL);
+
+    // --- MECHANIZM CACHE / BLACKBOX (SUB-FACTORY ENGINE) ---
+    function activateCacheTool() {
+      activeTool = 'cache_select';
+      selectedNodeIds.clear();
+      showToast("ZAZNACZ OBSZAR WĘZŁÓW: Przytrzymaj lewy przycisk myszy, aby zaznaczyć sieć do Cache.");
+    }
+
+    function analyzeSelectedNodesForCache() {
+      if (selectedNodeIds.size < 2) {
+        showToast("Zaznacz co najmniej 2 węzły, aby utworzyć Cache.");
+        activeTool = 'select';
+        return;
+      }
+
+      const clusterNodes = nodes.filter(n => selectedNodeIds.has(n.id));
+      let totalPower = 0;
+      let internalInputs = {};
+      let internalOutputs = {};
+
+      // Sumaryczna produkcja i konsumpcja
+      clusterNodes.forEach(n => {
+        if (n.isCache) {
+          totalPower += n.cacheData.power;
+          for (let k in n.cacheData.netInputs) internalInputs[k] = (internalInputs[k] || 0) + n.cacheData.netInputs[k];
+          for (let k in n.cacheData.netOutputs) internalOutputs[k] = (internalOutputs[k] || 0) + n.cacheData.netOutputs[k];
+        } else {
+          const t = NODE_TEMPLATES[n.templateKey];
+          totalPower += t.power;
+          if (t.category === 'extraction') {
+            const outRes = t.outputs[0];
+            internalOutputs[outRes] = (internalOutputs[outRes] || 0) + t.rate;
+          } else if (t.category === 'production') {
+            t.inputs.forEach(r => { internalInputs[r] = (internalInputs[r] || 0) + t.rate; });
+            if (t.outputs.length > 0) {
+              const outRes = t.outputs[0];
+              internalOutputs[outRes] = (internalOutputs[outRes] || 0) + t.rate;
+            }
+          }
+        }
       });
+
+      // Bilans netto: Anuluj wewnętrzną konsumpcję (np. ruda wydobywana wewnątrz i zużywana na miejscu)
+      let netInputs = { ...internalInputs };
+      let netOutputs = { ...internalOutputs };
+
+      for (let res in netOutputs) {
+        if (netInputs[res]) {
+          const canceled = Math.min(netOutputs[res], netInputs[res]);
+          netOutputs[res] -= canceled;
+          netInputs[res] -= canceled;
+          if (netOutputs[res] <= 0.001) delete netOutputs[res];
+          if (netInputs[res] <= 0.001) delete netInputs[res];
+        }
+      }
+
+      // Przygotuj modal
+      document.getElementById('cache-selected-count').innerText = `${clusterNodes.length} węzłów`;
+      document.getElementById('cache-net-in').innerText = Object.entries(netInputs).map(([k,v]) => `${v.toFixed(1)}/s ${RESOURCES[k]?.name || k}`).join(', ') || 'Brak (samowystarczalny)';
+      document.getElementById('cache-net-out').innerText = Object.entries(netOutputs).map(([k,v]) => `+${v.toFixed(1)}/s ${RESOURCES[k]?.name || k}`).join(', ') || 'Brak (czysty konsument)';
+      document.getElementById('cache-net-power').innerText = `${totalPower} MW`;
+
+      // Zachowaj tymczasowe dane kompilacji w pamięci podręcznej
+      window.tempCacheData = {
+        clusterNodes,
+        netInputs,
+        netOutputs,
+        power: totalPower,
+        inputPortList: Object.keys(netInputs),
+        outputPortList: Object.keys(netOutputs)
+      };
+
+      document.getElementById('modal-cache').classList.remove('hidden');
+    }
+
+    function closeCacheModal() {
+      document.getElementById('modal-cache').classList.add('hidden');
+      activeTool = 'select';
+      window.tempCacheData = null;
+    }
+
+    function commitCacheCluster() {
+      if (!window.tempCacheData) return;
+      const data = window.tempCacheData;
+      const customName = document.getElementById('cache-custom-name').value || "Skompresowany Moduł Cache";
+
+      // Wylicz średnią pozycję węzłów
+      let avgX = 0, avgY = 0;
+      data.clusterNodes.forEach(n => { avgX += n.x; avgY += n.y; });
+      avgX /= data.clusterNodes.length;
+      avgY /= data.clusterNodes.length;
+
+      const clusterNodeIds = new Set(data.clusterNodes.map(n => n.id));
+
+      // 1. Zachowaj zewnętrzne połączenia
+      const externalWiresToReconnect = [];
+      wires.forEach(w => {
+        const fromInCluster = clusterNodeIds.has(w.fromNode);
+        const toInCluster = clusterNodeIds.has(w.toNode);
+
+        if (!fromInCluster && toInCluster) {
+          // Połączenie wchodzące do klastra z zewnątrz
+          externalWiresToReconnect.push({ type: 'in', wire: w });
+        } else if (fromInCluster && !toInCluster) {
+          // Połączenie wychodzące z klastra na zewnątrz
+          externalWiresToReconnect.push({ type: 'out', wire: w });
+        }
+      });
+
+      // 2. Usuń wewnętrzne węzły i połączone z nimi kable
+      nodes = nodes.filter(n => !clusterNodeIds.has(n.id));
+      wires = wires.filter(w => !clusterNodeIds.has(w.fromNode) && !clusterNodeIds.has(w.toNode));
+
+      // 3. Stwórz nowy Węzeł Cache (Blackbox)
+      const cachedNode = createNodeInstance('cached_blackbox', avgX, avgY, {
+        name: customName,
+        netInputs: data.netInputs,
+        netOutputs: data.netOutputs,
+        power: data.power,
+        inputPortList: data.inputPortList,
+        outputPortList: data.outputPortList,
+        originalCount: data.clusterNodes.length
+      });
+      nodes.push(cachedNode);
+
+      // 4. Przepnij kable zewnętrzne do nowego Cache Node'a
+      externalWiresToReconnect.forEach(item => {
+        if (item.type === 'in') {
+          // Znajdź indeks portu odpowiadający surowcowi
+          const fromNode = nodes.find(n => n.id === item.wire.fromNode);
+          if (fromNode) {
+            const res = fromNode.outputs[item.wire.fromPort];
+            const inIdx = cachedNode.inputs.indexOf(res);
+            if (inIdx !== -1) {
+              connectNodes(fromNode.id, item.wire.fromPort, cachedNode.id, inIdx);
+            }
+          }
+        } else if (item.type === 'out') {
+          const toNode = nodes.find(n => n.id === item.wire.toNode);
+          if (toNode) {
+            const outIdx = 0; // Pierwsze dopasowane wyjście
+            connectNodes(cachedNode.id, outIdx, toNode.id, item.wire.toPort);
+          }
+        }
+      });
+
+      playTone(440, 'sine', 0.2, 0.2);
+      setTimeout(() => playTone(880, 'triangle', 0.3, 0.15), 100);
 
       closeCacheModal();
-      renderFactory();
+      selectedNodeIds.clear();
+      updateCountsHUD();
+      showToast(`Utworzono Cache '${customName}'! Zastąpiono ${data.clusterNodes.length} węzłów pojedynczym O(1).`);
     }
 
-    // --- KONTROLERY BUDOWY I RENDEROWANIA ---
-    function buildMachine(recipeKey) {
-      const r = RECIPES[recipeKey];
-      for (let costRes in r.cost) {
-        if ((state.resources[costRes] || 0) < r.cost[costRes]) return;
-      }
-      for (let costRes in r.cost) {
-        state.resources[costRes] -= r.cost[costRes];
+    // --- GŁÓWNY RENDERER CANVAS 2D ---
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.save();
+      ctx.translate(camera.x, camera.y);
+      ctx.scale(camera.zoom, camera.zoom);
+
+      // 1. Siatka tła (subtelne punkty / grid)
+      drawGrid();
+
+      // 2. Kable przesyłowe (Wires) z krzywymi Beziera
+      drawWires();
+
+      // 3. Pakiety i cząstki przepływu surowców na kablach
+      drawParticles();
+
+      // 4. Kable w trakcie przeciągania
+      if (wiringSource) {
+        const mouseWorld = screenToWorld(wiringSource.currentX, wiringSource.currentY);
+        const p1 = getPortWorldPosition(nodes.find(n => n.id === wiringSource.nodeId), wiringSource.isOutput, wiringSource.portIndex);
+        drawBezierCable(p1.x, p1.y, mouseWorld.x, mouseWorld.y, '#38bdf8', true);
       }
 
-      let existing = state.machines.find(m => m.recipeKey === recipeKey);
-      if (existing) {
-        existing.count++;
-      } else {
-        state.machines.push({ id: 'm_' + Date.now(), recipeKey, count: 1 });
+      // 5. Węzły (Nodes)
+      drawNodes();
+
+      // 6. Obszar zaznaczenia (Marquee)
+      if (marquee.active) {
+        const p1 = screenToWorld(marquee.startX, marquee.startY);
+        const p2 = screenToWorld(marquee.currentX, marquee.currentY);
+        const rx = Math.min(p1.x, p2.x);
+        const ry = Math.min(p1.y, p2.y);
+        const rw = Math.abs(p1.x - p2.x);
+        const rh = Math.abs(p1.y - p2.y);
+
+        ctx.strokeStyle = activeTool === 'cache_select' ? 'rgba(245, 158, 11, 0.9)' : 'rgba(56, 189, 248, 0.8)';
+        ctx.fillStyle = activeTool === 'cache_select' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(56, 189, 248, 0.1)';
+        ctx.lineWidth = 1.5 / camera.zoom;
+        ctx.setLineDash([4 / camera.zoom, 4 / camera.zoom]);
+        ctx.fillRect(rx, ry, rw, rh);
+        ctx.strokeRect(rx, ry, rw, rh);
+        ctx.setLineDash([]);
       }
-      renderFactory();
+
+      ctx.restore();
+      requestAnimationFrame(render);
     }
 
-    function renderSidebar() {
-      const c = document.getElementById('res-container');
-      let html = '';
-      for (let k in state.resources) {
-        let rate = netRates[k] || 0;
-        let sign = rate > 0 ? `+${rate.toFixed(1)}` : `${rate.toFixed(1)}`;
-        html += `
-          <div class="res-row">
-            <div>
-              <div>${k.toUpperCase()}</div>
-              <div class="res-rate">${sign}/s</div>
-            </div>
-            <div style="font-weight:bold; font-size: 15px;">${Math.floor(state.resources[k])}</div>
-          </div>
-        `;
+    function drawGrid() {
+      const gridSize = 40;
+      const vpLeft = -camera.x / camera.zoom;
+      const vpTop = -camera.y / camera.zoom;
+      const vpRight = (canvas.width - camera.x) / camera.zoom;
+      const vpBottom = (canvas.height - camera.y) / camera.zoom;
+
+      const startX = Math.floor(vpLeft / gridSize) * gridSize;
+      const startY = Math.floor(vpTop / gridSize) * gridSize;
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
+      for (let x = startX; x <= vpRight; x += gridSize) {
+        for (let y = startY; y <= vpBottom; y += gridSize) {
+          ctx.beginPath();
+          ctx.arc(x, y, 1.2 / camera.zoom, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
-      c.innerHTML = html;
     }
 
-    function renderFactory() {
-      const grid = document.getElementById('factory-grid');
-      let html = '';
+    function drawBezierCable(x1, y1, x2, y2, color, isDraft = false) {
+      ctx.beginPath();
+      const dx = Math.abs(x2 - x1) * 0.55;
+      ctx.moveTo(x1, y1);
+      ctx.bezierCurveTo(x1 + dx, y1, x2 - dx, y2, x2, y2);
 
-      // Dostępne maszyny do postawienia
-      for (let key in RECIPES) {
-        const r = RECIPES[key];
-        let costStr = Object.entries(r.cost).map(([k,v]) => `${v} ${k}`).join(', ');
-        let ioStr = Object.entries(r.in).map(([k,v]) => `-${v} ${k}`).concat(
-                    Object.entries(r.out).map(([k,v]) => `+${v} ${k}`)).join(', ');
+      ctx.strokeStyle = color;
+      ctx.lineWidth = (isDraft ? 2 : 3) / camera.zoom;
+      ctx.lineCap = 'round';
+      ctx.stroke();
 
-        html += `
-          <div class="card">
-            <div class="card-title">${r.name}</div>
-            <div class="card-desc">I/O: ${ioStr || 'Generacja mocy: ' + r.genPower + ' MW'}</div>
-            <div class="card-desc">Pobór: ${r.power || 0} MW | Koszt: ${costStr}</div>
-            <div class="card-actions">
-              <button class="btn" onclick="buildMachine('${key}')">Postaw</button>
-            </div>
-          </div>
-        `;
+      // Poświata kabla
+      if (!isDraft) {
+        ctx.strokeStyle = color;
+        ctx.globalAlpha = 0.25;
+        ctx.lineWidth = 6 / camera.zoom;
+        ctx.stroke();
+        ctx.globalAlpha = 1.0;
+      }
+    }
+
+    function drawWires() {
+      for (let w of wires) {
+        const fn = nodes.find(n => n.id === w.fromNode);
+        const tn = nodes.find(n => n.id === w.toNode);
+        if (!fn || !tn) continue;
+
+        const p1 = getPortWorldPosition(fn, true, w.fromPort);
+        const p2 = getPortWorldPosition(tn, false, w.toPort);
+        drawBezierCable(p1.x, p1.y, p2.x, p2.y, w.color);
+      }
+    }
+
+    function drawParticles() {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        const w = wires.find(item => item.id === p.wireId);
+        if (!w) { particles.splice(i, 1); continue; }
+
+        const fn = nodes.find(n => n.id === w.fromNode);
+        const tn = nodes.find(n => n.id === w.toNode);
+        if (!fn || !tn) { particles.splice(i, 1); continue; }
+
+        const p1 = getPortWorldPosition(fn, true, w.fromPort);
+        const p2 = getPortWorldPosition(tn, false, w.toPort);
+
+        p.progress += p.speed;
+        if (p.progress >= 1) {
+          particles.splice(i, 1);
+          continue;
+        }
+
+        // Oblicz punkt na krzywej Beziera w chwili t
+        const t = p.progress;
+        const dx = Math.abs(p2.x - p1.x) * 0.55;
+        const cp1x = p1.x + dx, cp1y = p1.y;
+        const cp2x = p2.x - dx, cp2y = p2.y;
+
+        const bx = Math.pow(1-t, 3)*p1.x + 3*Math.pow(1-t, 2)*t*cp1x + 3*(1-t)*Math.pow(t, 2)*cp2x + Math.pow(t, 3)*p2.x;
+        const by = Math.pow(1-t, 3)*p1.y + 3*Math.pow(1-t, 2)*t*cp1y + 3*(1-t)*Math.pow(t, 2)*cp2y + Math.pow(t, 3)*p2.y;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(bx, by, 3 / camera.zoom, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(bx, by, 1.8 / camera.zoom, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function drawNodes() {
+      for (let n of nodes) {
+        const isSelected = selectedNodeIds.has(n.id);
+
+        // Wybór koloru obrysu przy zaznaczeniu
+        if (isSelected) {
+          ctx.strokeStyle = activeTool === 'cache_select' ? '#fbbf24' : '#38bdf8';
+          ctx.lineWidth = 3 / camera.zoom;
+          ctx.strokeRect(n.x - 4, n.y - 4, n.width + 8, n.height + 8);
+        }
+
+        // Rysowanie bryły węzła (Pill, Rect, Circle, Terminal)
+        ctx.fillStyle = n.color;
+        if (n.shape === 'pill') {
+          drawRoundedRect(ctx, n.x, n.y, n.width, n.height, 12);
+        } else if (n.shape === 'small_circle') {
+          ctx.beginPath();
+          ctx.arc(n.x + n.width/2, n.y + n.height/2, n.width/2, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (n.shape === 'terminal') {
+          drawRoundedRect(ctx, n.x, n.y, n.width, n.height, 6);
+        } else {
+          // Standardowy zaokrąglony prostokąt
+          drawRoundedRect(ctx, n.x, n.y, n.width, n.height, n.isCache ? 8 : 4);
+        }
+
+        // Wskaźnik pracy / aktywności
+        if (n.lastActive && n.lastActive > 0.1) {
+          ctx.fillStyle = '#4ade80';
+          ctx.beginPath();
+          ctx.arc(n.x + n.width - 4, n.y + 4, 2.5 / camera.zoom, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Specjalna plakietka dla CACHE NODE
+        if (n.isCache) {
+          ctx.strokeStyle = '#c084fc';
+          ctx.lineWidth = 1.5 / camera.zoom;
+          ctx.strokeRect(n.x, n.y, n.width, n.height);
+
+          ctx.fillStyle = '#ffffff';
+          ctx.font = `bold ${10 / camera.zoom}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.fillText("📦 CACHE", n.x + n.width / 2, n.y + n.height / 2 + 3);
+        }
+
+        // Porty wejściowe (lewa strona)
+        for (let i = 0; i < n.inputs.length; i++) {
+          const pt = getPortWorldPosition(n, false, i);
+          ctx.fillStyle = '#0f172a';
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, 4.5 / camera.zoom, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#94a3b8';
+          ctx.lineWidth = 1.5 / camera.zoom;
+          ctx.stroke();
+        }
+
+        // Porty wyjściowe (prawa strona)
+        for (let i = 0; i < n.outputs.length; i++) {
+          const pt = getPortWorldPosition(n, true, i);
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, 4.5 / camera.zoom, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1.5 / camera.zoom;
+          ctx.stroke();
+        }
+      }
+    }
+
+    function drawRoundedRect(context, x, y, width, height, radius) {
+      context.beginPath();
+      context.moveTo(x + radius, y);
+      context.lineTo(x + width - radius, y);
+      context.quadraticCurveTo(x + width, y, x + width, y + radius);
+      context.lineTo(x + width, y + height - radius);
+      context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      context.lineTo(x + radius, y + height);
+      context.quadraticCurveTo(x, y + height, x, y + height - radius);
+      context.lineTo(x, y + radius);
+      context.quadraticCurveTo(x, y, x + radius, y);
+      context.closePath();
+      context.fill();
+    }
+
+    // --- OBSŁUGA ZDARZEŃ MYSZY, INTERAKCJI, PRZECIĄGANIA I PAN&ZOOM ---
+    canvas.addEventListener('mousedown', (e) => {
+      const mouse = screenToWorld(e.clientX, e.clientY);
+
+      // Środkowy przycisk myszy lub Spacja -> Przesuwanie kamery (Pan)
+      if (e.button === 1 || e.shiftKey || e.altKey) {
+        camera.isPanning = true;
+        camera.startX = e.clientX - camera.x;
+        camera.startY = e.clientY - camera.y;
+        return;
       }
 
-      // Istniejące Maszyny
-      state.machines.forEach(m => {
-        const r = RECIPES[m.recipeKey];
-        html += `
-          <div class="card">
-            <div class="card-title">
-              <span>${r.name}</span>
-              <span style="color:var(--accent)">x${m.count}</span>
-            </div>
-            <div class="card-desc">Maszyny w stanie operacyjnym</div>
-          </div>
+      if (e.button === 0) { // Lewy klik
+        // 1. Sprawdź kliknięcie w port (rozpoczęcie tworzenia kabla)
+        for (let n of nodes) {
+          // Porty wyjściowe
+          for (let i = 0; i < n.outputs.length; i++) {
+            const p = getPortWorldPosition(n, true, i);
+            const dist = Math.hypot(p.x - mouse.x, p.y - mouse.y);
+            if (dist < 10 / camera.zoom) {
+              wiringSource = { nodeId: n.id, portIndex: i, isOutput: true, currentX: e.clientX, currentY: e.clientY };
+              playTone(400, 'sine', 0.05, 0.05);
+              return;
+            }
+          }
+        }
+
+        // 2. Kliknięcie w węzeł (Zaznaczenie lub Przeciąganie węzła)
+        const hitNode = nodes.slice().reverse().find(n => 
+          mouse.x >= n.x && mouse.x <= n.x + n.width &&
+          mouse.y >= n.y && mouse.y <= n.y + n.height
+        );
+
+        if (hitNode) {
+          if (activeTool === 'cache_select') {
+            if (selectedNodeIds.has(hitNode.id)) selectedNodeIds.delete(hitNode.id);
+            else selectedNodeIds.add(hitNode.id);
+            return;
+          }
+
+          if (!e.ctrlKey && !selectedNodeIds.has(hitNode.id)) {
+            selectedNodeIds.clear();
+          }
+          selectedNodeIds.add(hitNode.id);
+          draggedNode = hitNode;
+          dragOffset.x = mouse.x - hitNode.x;
+          dragOffset.y = mouse.y - hitNode.y;
+          return;
+        }
+
+        // 3. Kliknięcie w puste tło -> Zaznaczanie prostokątne (Marquee) lub Panning
+        if (activeTool === 'cache_select' || !e.ctrlKey) {
+          marquee.active = true;
+          marquee.startX = e.clientX;
+          marquee.startY = e.clientY;
+          marquee.currentX = e.clientX;
+          marquee.currentY = e.clientY;
+          if (activeTool !== 'cache_select') selectedNodeIds.clear();
+        }
+      }
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (camera.isPanning) {
+        camera.x = e.clientX - camera.startX;
+        camera.y = e.clientY - camera.startY;
+        return;
+      }
+
+      if (wiringSource) {
+        wiringSource.currentX = e.clientX;
+        wiringSource.currentY = e.clientY;
+        return;
+      }
+
+      if (draggedNode) {
+        const mouse = screenToWorld(e.clientX, e.clientY);
+        const dx = (mouse.x - dragOffset.x) - draggedNode.x;
+        const dy = (mouse.y - dragOffset.y) - draggedNode.y;
+        
+        // Przesuń wszystkie zaznaczone węzły wspólnie
+        selectedNodeIds.forEach(id => {
+          const n = nodes.find(item => item.id === id);
+          if (n) {
+            n.x += dx;
+            n.y += dy;
+          }
+        });
+        return;
+      }
+
+      if (marquee.active) {
+        marquee.currentX = e.clientX;
+        marquee.currentY = e.clientY;
+      }
+    });
+
+    window.addEventListener('mouseup', (e) => {
+      if (camera.isPanning) {
+        camera.isPanning = false;
+      }
+
+      // Koniec przeciągania kabla -> weryfikacja podłączenia do portu wejściowego
+      if (wiringSource) {
+        const mouse = screenToWorld(e.clientX, e.clientY);
+        for (let n of nodes) {
+          if (n.id === wiringSource.nodeId) continue;
+          for (let i = 0; i < n.inputs.length; i++) {
+            const p = getPortWorldPosition(n, false, i);
+            const dist = Math.hypot(p.x - mouse.x, p.y - mouse.y);
+            if (dist < 14 / camera.zoom) {
+              connectNodes(wiringSource.nodeId, wiringSource.portIndex, n.id, i);
+              break;
+            }
+          }
+        }
+        wiringSource = null;
+      }
+
+      draggedNode = null;
+
+      // Zakończenie zaznaczania prostokątnego
+      if (marquee.active) {
+        marquee.active = false;
+        const p1 = screenToWorld(marquee.startX, marquee.startY);
+        const p2 = screenToWorld(marquee.currentX, marquee.currentY);
+        const rx = Math.min(p1.x, p2.x);
+        const ry = Math.min(p1.y, p2.y);
+        const rw = Math.abs(p1.x - p2.x);
+        const rh = Math.abs(p1.y - p2.y);
+
+        if (rw > 5 && rh > 5) {
+          nodes.forEach(n => {
+            if (n.x + n.width >= rx && n.x <= rx + rw && n.y + n.height >= ry && n.y <= ry + rh) {
+              selectedNodeIds.add(n.id);
+            }
+          });
+
+          if (activeTool === 'cache_select') {
+            analyzeSelectedNodesForCache();
+          }
+        }
+      }
+    });
+
+    // Zoom kółkiem myszy
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const zoomFactor = e.deltaY < 0 ? 1.15 : 0.85;
+      const mouseX = e.clientX;
+      const mouseY = e.clientY;
+
+      const newZoom = Math.min(Math.max(0.2, camera.zoom * zoomFactor), 3.5);
+
+      camera.x = mouseX - (mouseX - camera.x) * (newZoom / camera.zoom);
+      camera.y = mouseY - (mouseY - camera.y) * (newZoom / camera.zoom);
+      camera.zoom = newZoom;
+    }, { passive: false });
+
+    // Usuwanie klawiszem Delete/Backspace
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedNodeIds.size > 0 && !document.getElementById('modal-cache').classList.contains('hidden')) return;
+        deleteSelectedNodes();
+      }
+    });
+
+    function deleteSelectedNodes() {
+      if (selectedNodeIds.size === 0) return;
+      nodes = nodes.filter(n => !selectedNodeIds.has(n.id));
+      wires = wires.filter(w => !selectedNodeIds.has(w.fromNode) && !selectedNodeIds.has(w.toNode));
+      selectedNodeIds.clear();
+      updateCountsHUD();
+      playTone(200, 'sawtooth', 0.1, 0.1);
+      showToast("Usunięto zaznaczone obiekty.");
+    }
+
+    // --- DOLNY PANEL BUDOWANIA I PALETY JEDNOSTEK ---
+    let currentCategory = null;
+
+    function selectCategory(cat) {
+      if (currentCategory === cat) {
+        document.getElementById('build-palette').classList.add('hidden');
+        currentCategory = null;
+        return;
+      }
+      currentCategory = cat;
+      const palette = document.getElementById('build-palette');
+      palette.innerHTML = '';
+
+      const items = Object.entries(NODE_TEMPLATES).filter(([k, v]) => v.category === cat);
+      items.forEach(([k, t]) => {
+        const btn = document.createElement('button');
+        btn.className = "flex flex-col items-center gap-1.5 p-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-sky-400 transition-all text-xs min-w-[90px]";
+        btn.innerHTML = `
+          <div class="w-7 h-7 rounded-md flex items-center justify-center font-bold text-[10px]" style="background: ${t.color}">${t.name.slice(0,2)}</div>
+          <span class="font-medium text-slate-200 text-center text-[11px] leading-tight">${t.name}</span>
+          <span class="text-[10px] text-amber-400 font-mono">${t.cost} sztab</span>
         `;
+        btn.onclick = () => spawnNodeAtCenter(k);
+        palette.appendChild(btn);
       });
 
-      // Istniejące Cache Node'y
-      state.cachedNodes.forEach((c, i) => {
-        let inStr = Object.entries(c.inputs).map(([k,v]) => `-${v}/s ${k}`).join(', ');
-        let outStr = Object.entries(c.outputs).map(([k,v]) => `+${v}/s ${k}`).join(', ');
-        html += `
-          <div class="card cached">
-            <div class="card-title">
-              <span>📦 ${c.name}</span>
-              <span style="color:var(--accent)">x${c.count}</span>
-            </div>
-            <div class="card-desc" style="color:#6ee7b7">BILANS WEJŚCIA: ${inStr || 'Brak'}</div>
-            <div class="card-desc" style="color:#93c5fd">BILANS WYJŚCIA: ${outStr || 'Brak'}</div>
-            <div class="card-desc">Pobór mocy: ${c.powerDemand} MW</div>
+      palette.classList.remove('hidden');
+      playTone(500, 'sine', 0.04, 0.05);
+    }
+
+    function spawnNodeAtCenter(templateKey) {
+      const centerWorld = screenToWorld(window.innerWidth / 2, window.innerHeight / 2);
+      // Dodaj losowe małe przesunięcie aby węzły nie nakładały się w 100%
+      const jitterX = (Math.random() - 0.5) * 60;
+      const jitterY = (Math.random() - 0.5) * 60;
+      const newNode = createNodeInstance(templateKey, centerWorld.x + jitterX, centerWorld.y + jitterY);
+      nodes.push(newNode);
+      selectedNodeIds.clear();
+      selectedNodeIds.add(newNode.id);
+      updateCountsHUD();
+      playTone(650, 'triangle', 0.1, 0.1);
+      showToast(`Postawiono: ${newNode.name}`);
+    }
+
+    function updateCountsHUD() {
+      let ext = 0, prod = 0, log = 0, cached = 0;
+      nodes.forEach(n => {
+        if (n.isCache) { cached++; return; }
+        const cat = NODE_TEMPLATES[n.templateKey]?.category;
+        if (cat === 'extraction') ext++;
+        if (cat === 'production') prod++;
+        if (cat === 'logistics') log++;
+      });
+      document.getElementById('count-ext').innerText = ext;
+      document.getElementById('count-prod').innerText = prod;
+      document.getElementById('count-nodes').innerText = log;
+      document.getElementById('count-wh').innerText = Object.keys(globalStorage).length;
+      document.getElementById('stats-nodes').innerText = `Węzły: ${nodes.length} (Cachowane: ${cached})`;
+    }
+
+    function toggleWarehouseDrawer() {
+      const el = document.getElementById('warehouse-drawer');
+      el.classList.toggle('hidden');
+    }
+
+    function updateWarehouseView() {
+      const container = document.getElementById('warehouse-items');
+      if (document.getElementById('warehouse-drawer').classList.contains('hidden')) return;
+
+      container.innerHTML = Object.entries(globalStorage).map(([k, amt]) => {
+        const meta = RESOURCES[k] || { name: k, color: '#fff' };
+        return `
+          <div class="flex justify-between items-center p-1.5 bg-slate-900 rounded border border-slate-800">
+            <span class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full" style="background: ${meta.color}"></span>
+              <span class="text-slate-300">${meta.name}</span>
+            </span>
+            <span class="font-bold text-sky-400">${Math.floor(amt)}</span>
           </div>
         `;
-      });
-
-      grid.innerHTML = html;
+      }).join('');
     }
 
-    // --- MODALE ---
-    function openCacheModal() {
-      const list = document.getElementById('cache-selection-list');
-      list.innerHTML = state.machines.map((m, idx) => `
-        <label style="display:block; margin-bottom:6px;">
-          <input type="checkbox" class="cache-select" data-index="${idx}">
-          ${RECIPES[m.recipeKey].name} (x${m.count})
-        </label>
-      `).join('');
-      document.getElementById('cache-modal').style.display = 'flex';
-    }
-    function closeCacheModal() { document.getElementById('cache-modal').style.display = 'none'; }
-    function openCloudModal() { document.getElementById('cloud-modal').style.display = 'flex'; }
-    function closeCloudModal() { document.getElementById('cloud-modal').style.display = 'none'; }
+    document.getElementById('btn-reset-view').addEventListener('click', () => {
+      camera.x = window.innerWidth / 2;
+      camera.y = window.innerHeight / 2;
+      camera.zoom = 1.0;
+    });
 
-    // --- ZAPIS LOCALSTORAGE & GITHUB GIST ---
-    function saveGame(notify = false) {
-      localStorage.setItem('incr_factory_save', JSON.stringify(state));
-      if (notify) alert('Stan gry zapisany lokalnie.');
+    // --- INTEGRACJA ZAPISU W CHMURZE GITHUB GIST I LOCALSTORAGE ---
+    function openCloudModal() {
+      document.getElementById('gh-token').value = localStorage.getItem('if_gh_token') || '';
+      document.getElementById('gh-gist-id').value = localStorage.getItem('if_gh_gist_id') || '';
+      document.getElementById('modal-cloud').classList.remove('hidden');
+    }
+    function closeCloudModal() {
+      document.getElementById('modal-cloud').classList.add('hidden');
     }
 
-    function loadGame() {
-      const data = localStorage.getItem('incr_factory_save');
-      if (data) {
-        state = JSON.parse(data);
-        renderFactory();
+    function getSavePayload() {
+      return {
+        timestamp: Date.now(),
+        nodes,
+        wires,
+        globalStorage,
+        camera: { x: camera.x, y: camera.y, zoom: camera.zoom }
+      };
+    }
+
+    function restoreFromPayload(data) {
+      if (!data || !data.nodes) return;
+      nodes = data.nodes;
+      wires = data.wires;
+      globalStorage = data.globalStorage || globalStorage;
+      if (data.camera) {
+        camera.x = data.camera.x;
+        camera.y = data.camera.y;
+        camera.zoom = data.camera.zoom;
+      }
+      updateCountsHUD();
+      showToast("Stan fabryki został pomyślnie wczytany!");
+    }
+
+    function exportSaveJSON() {
+      const str = JSON.stringify(getSavePayload());
+      // Kopiowanie bezpieczne dla iFrame
+      const dummy = document.createElement('textarea');
+      document.body.appendChild(dummy);
+      dummy.value = str;
+      dummy.select();
+      document.execCommand('copy');
+      document.body.removeChild(dummy);
+      showToast("Zapis JSON skopiowany do schowka!");
+    }
+
+    function importSavePrompt() {
+      const str = prompt("Wklej kod zapisu JSON:");
+      if (str) {
+        try {
+          const parsed = JSON.parse(str);
+          restoreFromPayload(parsed);
+          closeCloudModal();
+        } catch (e) {
+          showToast("Niepoprawny format danych JSON.");
+        }
       }
     }
 
-    async function saveToGist() {
-      const token = document.getElementById('gh-token').value;
-      const gistId = document.getElementById('gh-gist-id').value;
-      if (!token) return alert('Wymagany GitHub Personal Access Token');
+    async function saveToGistCloud() {
+      const token = document.getElementById('gh-token').value.trim();
+      const gistId = document.getElementById('gh-gist-id').value.trim();
+      if (!token) {
+        showToast("Wymagany GitHub Personal Access Token (PAT)!");
+        return;
+      }
+      localStorage.setItem('if_gh_token', token);
 
       const payload = {
         description: "Incremental Factory Cloud Save",
         public: false,
         files: {
           "incremental_factory_save.json": {
-            content: JSON.stringify(state, null, 2)
+            content: JSON.stringify(getSavePayload(), null, 2)
           }
         }
       };
@@ -410,6 +1473,7 @@
       const method = gistId ? 'PATCH' : 'POST';
 
       try {
+        showToast("Wysyłanie do GitHub Gist...");
         const res = await fetch(url, {
           method,
           headers: { "Authorization": `token ${token}`, "Content-Type": "application/json" },
@@ -417,39 +1481,63 @@
         });
         const d = await res.json();
         if (d.id) {
+          localStorage.setItem('if_gh_gist_id', d.id);
           document.getElementById('gh-gist-id').value = d.id;
-          alert(`Zapisano pomyślnie w chmurze! Gist ID: ${d.id}`);
+          showToast(`Zapisano w chmurze! Gist ID: ${d.id}`);
+          playTone(800, 'sine', 0.2, 0.2);
+        } else {
+          showToast("Błąd zapisu GitHub: " + (d.message || "Brak uprawnień"));
         }
-      } catch (e) {
-        alert('Błąd zapisu do GitHub Gist: ' + e.message);
+      } catch (err) {
+        showToast("Błąd połączenia z GitHub API: " + err.message);
       }
     }
 
-    async function loadFromGist() {
-      const token = document.getElementById('gh-token').value;
-      const gistId = document.getElementById('gh-gist-id').value;
-      if (!gistId) return alert('Podaj Gist ID aby wczytać dane.');
-
+    async function loadFromGistCloud() {
+      const token = document.getElementById('gh-token').value.trim();
+      const gistId = document.getElementById('gh-gist-id').value.trim();
+      if (!gistId) {
+        showToast("Wpisz Gist ID do wczytania.");
+        return;
+      }
       try {
+        showToast("Pobieranie z GitHub Gist...");
         const res = await fetch(`https://api.github.com/gists/${gistId}`, {
           headers: token ? { "Authorization": `token ${token}` } : {}
         });
         const d = await res.json();
-        const content = d.files["incremental_factory_save.json"].content;
-        state = JSON.parse(content);
-        renderFactory();
-        alert('Stan gry pobrany z chmury!');
-        closeCloudModal();
-      } catch (e) {
-        alert('Błąd wczytywania: ' + e.message);
+        const rawContent = d.files["incremental_factory_save.json"]?.content;
+        if (rawContent) {
+          const parsed = JSON.parse(rawContent);
+          restoreFromPayload(parsed);
+          closeCloudModal();
+        } else {
+          showToast("Plik incremental_factory_save.json nie został znaleziony w podanym Giście.");
+        }
+      } catch (err) {
+        showToast("Błąd pobierania: " + err.message);
       }
     }
 
-    // Auto-save co 30s i start pętli
-    loadGame();
-    setInterval(tick, 1000 / TICK_RATE);
-    setInterval(() => saveGame(false), 30000);
-    renderFactory();
+    // Auto-save do localStorage
+    setInterval(() => {
+      localStorage.setItem('if_local_save', JSON.stringify(getSavePayload()));
+    }, 15000);
+
+    // Sprawdź czy istnieje lokalny zapis w przeglądarce, jeśli nie - załaduj schemat startowy
+    window.addEventListener('load', () => {
+      const saved = localStorage.getItem('if_local_save');
+      if (saved) {
+        try {
+          restoreFromPayload(JSON.parse(saved));
+        } catch (e) {
+          initializeStarterFactory();
+        }
+      } else {
+        initializeStarterFactory();
+      }
+      render();
+    });
   </script>
 </body>
 </html>
