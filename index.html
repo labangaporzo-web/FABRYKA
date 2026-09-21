@@ -1,1434 +1,593 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pl">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Incremental Factory</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <title>Incremental Factory - Full Game Edition</title>
   <style>
-    * {
-      box-sizing: border-box;
-      user-select: none;
-      -webkit-user-select: none;
-    }
-    body, html {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background-color: #0d0f14;
-      color: #e2e8f0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }
-
-    #game-canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      display: block;
-      cursor: grab;
-    }
-    #game-canvas:active {
-      cursor: grabbing;
+    :root {
+      --bg-space: #07090e;
+      --bg-hud: rgba(22, 25, 33, 0.94);
+      --bg-panel: #242424;
+      --bg-panel-header: #1e1e1e;
+      --border-gray: #3a3a3a;
+      --border-accent: #555;
+      --text-main: #e0e0e0;
+      --text-dim: #8b8b8b;
+      --text-cyan: #38bdf8;
+      --accent-red: #d32f2f;
+      --accent-red-hover: #b71c1c;
+      --accent-green: #22c55e;
+      --accent-gold: #f59e0b;
+      --accent-science-red: #ef4444;
+      --accent-science-green: #10b981;
     }
 
-    /* Authentic Incremental Factory Modal theme */
-    .if-modal-bg {
-      background-color: #242424;
-      color: #e5e7eb;
-    }
-    .if-search-input {
-      background-color: #383838;
-      border: 1px solid #454545;
-      color: #d1d5db;
-    }
-    .if-search-input:focus {
-      outline: none;
-      border-color: #60a5fa;
-      background-color: #3f3f3f;
-    }
-    .if-btn-action {
-      background: linear-gradient(180deg, #444444 0%, #2b2b2b 100%);
-      border: 1px solid #555555;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.15);
-    }
-    .if-btn-action:hover {
-      background: linear-gradient(180deg, #525252 0%, #363636 100%);
-      border-color: #777777;
-    }
-    .if-btn-action:active {
-      background: #202020;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
+    body { background-color: var(--bg-space); color: var(--text-main); overflow: hidden; height: 100vh; width: 100vw; }
 
-    /* Authentic HUD Panel matching screenshot */
-    .if-hud-bar {
-      background: linear-gradient(180deg, rgba(34, 38, 44, 0.95) 0%, rgba(18, 20, 24, 0.98) 100%);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-    }
-    .if-hud-pill {
-      background: linear-gradient(180deg, #374151 0%, #1f2937 100%);
-      border: 1px solid #4b5563;
-      border-radius: 9999px;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 2px 5px rgba(0,0,0,0.5);
-      transition: all 0.12s ease;
-    }
-    .if-hud-pill:hover {
-      background: linear-gradient(180deg, #4b5563 0%, #374151 100%);
-      border-color: #60a5fa;
-      transform: translateY(-1px);
-    }
-    .if-hud-pill:active {
-      transform: translateY(1px);
-      box-shadow: inset 0 2px 4px rgba(0,0,0,0.8);
-    }
+    #canvas-container { position: absolute; inset: 0; cursor: crosshair; }
+    canvas { display: block; width: 100%; height: 100%; }
 
-    /* Custom scrollbars */
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
+    /* Górny pasek z celami i badaniami */
+    #top-stats-bar {
+      position: absolute; top: 12px; left: 16px; right: 16px;
+      display: flex; justify-content: space-between; align-items: center;
+      background: var(--bg-hud); border: 1px solid var(--border-gray);
+      border-radius: 8px; padding: 8px 18px; z-index: 10;
+      backdrop-filter: blur(8px);
     }
-    ::-webkit-scrollbar-thumb {
-      background: #4a4a4a;
-      border-radius: 3px;
+    .stat-pill { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+    .stat-val { font-weight: bold; color: #fff; }
+    .goal-badge { background: #3b2812; border: 1px solid var(--accent-gold); color: #fde68a; padding: 4px 10px; border-radius: 6px; font-size: 12px; }
+
+    /* Dolny pasek HUD (Styl 1:1 z gry) */
+    #hud-capsule {
+      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: rgba(18, 20, 26, 0.95); border: 1px solid #333842;
+      border-radius: 28px; padding: 6px 14px; display: flex; align-items: center;
+      gap: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); z-index: 20;
     }
-    ::-webkit-scrollbar-track {
-      background: #1e1e1e;
+    .hud-btn {
+      background: linear-gradient(180deg, #323741 0%, #20242b 100%);
+      color: #cfd4dc; border: 1px solid #444b58; border-radius: 18px;
+      padding: 7px 16px; font-size: 13px; font-weight: 600; cursor: pointer;
+      display: flex; align-items: center; gap: 6px; transition: all 0.15s ease;
     }
+    .hud-btn:hover { background: #3c4350; border-color: #5d677a; color: #fff; }
+    .hud-btn:active { transform: translateY(1px); }
+    .hud-btn.active { border-color: var(--text-cyan); color: var(--text-cyan); box-shadow: 0 0 8px rgba(56,189,248,0.3); }
+
+    /* Okno Parcela (Modal 1:1 z drugiego zrzutu ekranu) */
+    #parcel-modal-backdrop {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px); z-index: 100; align-items: center; justify-content: center;
+    }
+    #parcel-modal {
+      width: 940px; height: 600px; background: var(--bg-panel);
+      border: 1px solid var(--border-accent); border-radius: 2px;
+      display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.9);
+      position: relative;
+    }
+    .pm-header {
+      padding: 12px 18px; display: flex; align-items: center; gap: 12px;
+      border-bottom: 1px solid var(--border-gray); background: var(--bg-panel-header);
+    }
+    .pm-title { font-size: 20px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 10px; }
+    .pm-type { font-size: 13px; color: #9c9c9c; font-weight: normal; margin-left: 10px; }
+    .pm-close { margin-left: auto; font-size: 20px; cursor: pointer; color: #aaa; }
+    .pm-close:hover { color: #fff; }
+
+    .pm-content { flex: 1; display: flex; overflow: hidden; }
+    
+    /* Lewa kolumna: Tabela zasobów */
+    .pm-left {
+      width: 48%; border-right: 1px solid var(--border-gray);
+      padding: 14px; overflow-y: auto;
+    }
+    .res-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .res-table th { text-align: left; padding: 6px 8px; color: #888; font-weight: 600; border-bottom: 1px solid #333; }
+    .res-table td { padding: 6px 8px; border-bottom: 1px solid #2b2b2b; }
+    
+    /* Prawa kolumna: Konfiguracja i budynki */
+    .pm-right {
+      width: 52%; padding: 14px; display: flex; flex-direction: column; overflow: hidden;
+    }
+    .pm-stats-block { font-size: 13px; color: #c5c5c5; line-height: 1.6; margin-bottom: 10px; }
+    .pm-stats-block span { color: #fff; font-weight: 600; }
+    .pm-search {
+      width: 100%; background: #1a1a1a; border: 1px solid #333; color: #ddd;
+      padding: 6px 10px; font-size: 13px; border-radius: 2px; margin-bottom: 8px;
+    }
+    .pm-buildings-list {
+      flex: 1; overflow-y: auto; border: 1px solid var(--border-gray);
+      background: #1d1d1d;
+    }
+    .b-row {
+      display: flex; align-items: center; padding: 5px 10px;
+      border-bottom: 1px solid #282828; font-size: 13px; justify-content: space-between;
+    }
+    .b-row:hover { background: #242424; }
+    .b-name-block { display: flex; align-items: center; gap: 8px; }
+    .b-action-btn {
+      width: 24px; height: 24px; background: #333; border: 1px solid #444;
+      color: #fff; cursor: pointer; font-weight: bold; border-radius: 2px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .b-action-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .b-action-btn:not(:disabled):hover { background: #444; }
+    .b-cost-hint { font-size: 10px; color: #888; margin-left: 6px; }
+
+    .pm-footer {
+      height: 48px; border-top: 1px solid var(--border-gray);
+      background: var(--bg-panel-header); display: flex; align-items: center;
+      justify-content: space-between; padding: 0 16px;
+    }
+    .btn-delete-parcel {
+      background: var(--accent-red); color: #fff; border: none;
+      padding: 6px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+      border-radius: 2px; display: flex; align-items: center; gap: 6px;
+    }
+    .btn-delete-parcel:hover { background: var(--accent-red-hover); }
+
+    /* Modal Badań (Research Tree) */
+    #research-modal {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+      z-index: 105; align-items: center; justify-content: center;
+    }
+    .tech-card {
+      background: #1e222b; border: 1px solid #333d4e; border-radius: 6px;
+      padding: 12px; margin-bottom: 10px; display: flex; justify-content: space-between;
+      align-items: center;
+    }
+    .tech-card.unlocked { border-color: var(--accent-green); background: #0f231a; }
   </style>
 </head>
-<body class="relative w-full h-full">
+<body>
 
-  <!-- Main Canvas for Inter-Parcel Node Graph -->
-  <canvas id="game-canvas"></canvas>
-
-  <!-- Top status & telemetry bar -->
-  <div class="absolute top-3 left-4 right-4 flex items-center justify-between pointer-events-none z-10">
-    <div class="flex items-center gap-3 bg-black/75 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 pointer-events-auto">
-      <div class="flex items-center gap-2">
-        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-        <span class="font-bold tracking-wider text-xs uppercase text-sky-400">Incremental Factory</span>
-        <span class="text-[11px] text-slate-400 font-mono">Parcel System v2.0</span>
+  <div id="top-stats-bar">
+    <div style="display:flex; gap: 20px; align-items: center;">
+      <div class="stat-pill">
+        <span style="color:#ef4444;">🧪 Pkt. Nauki:</span>
+        <span class="stat-val" id="val-science">0 RP</span>
       </div>
-      <div class="h-4 w-px bg-white/10"></div>
-      <div id="top-parcels-stat" class="text-xs text-slate-300 font-mono">Parcels: 0 (Cached: 0)</div>
-      <div class="h-4 w-px bg-white/10"></div>
-      <div id="top-power-stat" class="text-xs text-amber-300 font-mono">⚡ 0/0 MW</div>
-      <div class="h-4 w-px bg-white/10"></div>
-      <div id="top-science-stat" class="text-xs text-cyan-300 font-mono">🧪 0 SP</div>
+      <div class="stat-pill">
+        <span style="color:#eab308;">⚡ Energia Globalna:</span>
+        <span class="stat-val" id="val-power">0 / 0 MW</span>
+      </div>
+      <div class="stat-pill">
+        <span style="color:#38bdf8;">📦 Aktywne Parcele:</span>
+        <span class="stat-val" id="val-parcels-count">0</span>
+      </div>
     </div>
-
-    <div class="flex items-center gap-2 pointer-events-auto">
-      <button id="btn-sound-toggle" class="bg-black/75 hover:bg-slate-800 text-xs px-3 py-2 rounded-lg border border-white/10 text-slate-300 transition-colors">
-        🔊 Sound: ON
-      </button>
-      <button id="btn-center-cam" class="bg-black/75 hover:bg-slate-800 text-xs px-3 py-2 rounded-lg border border-white/10 text-slate-300 transition-colors">
-        🎯 Recenter
-      </button>
+    <div class="stat-pill">
+      <div class="goal-badge" id="current-milestone-text">🎯 CEL ETAPU 1: Wyprodukuj 50x Żelazne Sztaby w Magazynie</div>
     </div>
   </div>
 
-  <!-- BOTTOM HUD PANEL (Exact match to screenshot 1) -->
-  <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 pointer-events-auto">
-    <div class="if-hud-bar flex items-center gap-2 px-4 py-2 rounded-full">
-      <button onclick="spawnParcel('extraction')" class="if-hud-pill px-4 py-1.5 text-xs font-medium text-slate-200">
-        Extraction(<span id="hud-count-ext">0</span>)
-      </button>
-      <button onclick="spawnParcel('production')" class="if-hud-pill px-4 py-1.5 text-xs font-medium text-slate-200">
-        Production(<span id="hud-count-prod">0</span>)
-      </button>
-      <button onclick="spawnParcel('node')" class="if-hud-pill px-4 py-1.5 text-xs font-medium text-slate-200">
-        Node(<span id="hud-count-nodes">0</span>)
-      </button>
-      <button onclick="spawnParcel('warehouse')" class="if-hud-pill px-4 py-1.5 text-xs font-medium text-slate-200">
-        Warehouse(<span id="hud-count-wh">0</span>)
-      </button>
-
-      <div class="h-5 w-px bg-white/20 mx-1"></div>
-
-      <!-- SUB-FACTORY CACHE TOOL -->
-      <button onclick="activateCacheSelectionTool()" id="btn-cache-tool" class="if-hud-pill px-4 py-1.5 text-xs font-semibold text-amber-300 border-amber-500/50 hover:border-amber-400">
-        📦 Cache Sub-Factory
-      </button>
-
-      <!-- GITHUB / CLOUD SAVE -->
-      <button onclick="openCloudModal()" class="if-hud-pill px-3 py-1.5 text-xs font-medium text-cyan-300 border-cyan-500/40">
-        ☁️ GitHub Save
-      </button>
-    </div>
+  <div id="canvas-container">
+    <canvas id="gameCanvas"></canvas>
   </div>
 
-  <!-- AUTHENTIC PARCEL MODAL (Exact match to user screenshot 2) -->
-  <div id="parcel-modal" class="fixed inset-0 bg-black/75 backdrop-blur-[2px] z-50 hidden flex items-center justify-center p-4">
-    <div class="if-modal-bg w-full max-w-5xl h-[85vh] rounded-none md:rounded-sm border border-[#3a3a3a] shadow-2xl flex flex-col overflow-hidden relative text-[#cfcfcf]">
-      
-      <!-- Modal Header -->
-      <div class="flex items-center justify-between px-6 pt-5 pb-3">
-        <div class="flex items-center gap-3">
-          <h2 id="pm-title" class="text-xl font-bold text-white tracking-wide">Production-1</h2>
-          <button onclick="renameParcelPrompt()" title="Rename Parcel" class="text-slate-400 hover:text-white p-1">
-            ✏️
-          </button>
-          <button onclick="changeColorPrompt()" title="Change Color" class="text-slate-400 hover:text-white p-1">
-            🎨
-          </button>
-          <span id="pm-subtitle" class="text-xs text-[#8f8f8f] font-normal ml-2">Production Parcel</span>
-        </div>
-        <button onclick="closeParcelModal()" class="text-[#888888] hover:text-white text-2xl leading-none px-2 font-light">
-          ✕
-        </button>
-      </div>
-
-      <!-- Main Body: Two Columns (Left = Resources, Right = Building Slots & Catalog) -->
-      <div class="flex-1 flex overflow-hidden px-6 py-2 gap-8">
-        
-        <!-- Left Side: Resources Inventory and I/O Rates -->
-        <div class="w-1/2 flex flex-col overflow-hidden border-r border-[#333333] pr-6">
-          <div class="grid grid-cols-4 text-xs font-semibold text-[#8e8e8e] pb-2 border-b border-[#3a3a3a]">
-            <div>Resource</div>
-            <div class="text-right">Qty</div>
-            <div class="text-right">Rate (max)</div>
-            <div class="text-right">Output</div>
-          </div>
-          
-          <div id="pm-resource-list" class="flex-1 overflow-y-auto divide-y divide-[#2c2c2c] text-xs">
-            <!-- Dynamically populated rows -->
-          </div>
-        </div>
-
-        <!-- Right Side: Metrics, Search and Building Slots -->
-        <div class="w-1/2 flex flex-col overflow-hidden pl-2">
-          <!-- Top Telemetry details -->
-          <div class="text-xs space-y-1 text-[#b5b5b5] mb-3 font-mono">
-            <div>Storage: <span id="pm-storage-val" class="text-white font-semibold">1,250</span></div>
-            <div>Connections: <span id="pm-connections-val" class="text-white font-semibold">0 / 8</span></div>
-            <div>
-              Building Slots: <span id="pm-slots-val" class="text-white font-bold">0 / 32</span>
-              <span id="pm-slots-extra" class="text-[#888888] ml-2">32 Free → + 5.3 Extra Connections</span>
-            </div>
-          </div>
-
-          <!-- Controls: Smart Sort & Utilization Bar -->
-          <div class="flex items-center gap-6 text-xs text-[#a0a0a0] mb-3">
-            <label class="flex items-center gap-2 cursor-pointer">
-              <span>Smart Sort</span>
-              <input type="checkbox" id="chk-smart-sort" class="accent-sky-500 rounded bg-[#333]">
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer">
-              <span>Utilization Bar</span>
-              <input type="checkbox" id="chk-utilization" checked class="accent-sky-500 rounded bg-[#333]">
-            </label>
-          </div>
-
-          <!-- Search buildings input -->
-          <div class="mb-3">
-            <input type="text" id="pm-search" placeholder="Search buildings..." oninput="filterBuildingList()" 
-              class="if-search-input w-full px-3 py-1.5 text-xs rounded-sm">
-          </div>
-
-          <!-- Building Table Header -->
-          <div class="grid grid-cols-12 text-xs font-semibold text-[#8e8e8e] pb-2 border-b border-[#3a3a3a]">
-            <div class="col-span-2">Action</div>
-            <div class="col-span-2 text-center">Qty</div>
-            <div class="col-span-8">Building</div>
-          </div>
-
-          <!-- Building List -->
-          <div id="pm-building-list" class="flex-1 overflow-y-auto divide-y divide-[#2c2c2c] text-xs">
-            <!-- Buildings dynamically rendered here -->
-          </div>
-        </div>
-
-      </div>
-
-      <!-- Footer: Delete Parcel Button & Parcel ID -->
-      <div class="flex items-center justify-between px-6 py-3 border-t border-[#333333] bg-[#202020]">
-        <div class="flex items-center gap-3">
-          <button onclick="deleteCurrentParcel()" class="flex items-center gap-1.5 px-3 py-1.5 bg-[#d60000] hover:bg-[#b00000] text-white text-xs font-semibold rounded-sm shadow-md transition-colors">
-            <span>🗑</span> Delete Parcel
-          </button>
-          <button id="pm-btn-freeze" onclick="toggleParcelFreeze()" class="flex items-center gap-1.5 px-3 py-1.5 bg-[#4f46e5] hover:bg-[#4338ca] text-white text-xs font-semibold rounded-sm shadow-md transition-colors">
-            <span>📦</span> Cache This Parcel (O(1))
-          </button>
-        </div>
-        <div id="pm-parcel-id" class="text-[11px] font-mono text-[#555555]">parcel-489</div>
-      </div>
-
-    </div>
+  <!-- DOLNY HUD (Jak na screenie 1) -->
+  <div id="hud-capsule">
+    <button class="hud-btn" id="btn-buy-extraction" onclick="buyAndSpawnParcel('extraction')">
+      Extraction (<span id="cnt-ext">0</span>) <span style="font-size:10px; color:#aaa;">[50 Fe]</span>
+    </button>
+    <button class="hud-btn" id="btn-buy-production" onclick="buyAndSpawnParcel('production')">
+      Production (<span id="cnt-prod">0</span>) <span style="font-size:10px; color:#aaa;">[100 Fe, 50 Cu]</span>
+    </button>
+    <button class="hud-btn" id="btn-buy-node" onclick="buyAndSpawnParcel('node')">
+      Node (<span id="cnt-node">0</span>) <span style="font-size:10px; color:#aaa;">[25 Fe]</span>
+    </button>
+    <button class="hud-btn" id="btn-buy-warehouse" onclick="buyAndSpawnParcel('warehouse')">
+      Warehouse (<span id="cnt-ware">0</span>) <span style="font-size:10px; color:#aaa;">[150 Fe, 100 Cu]</span>
+    </button>
+    <div style="width:1px; height: 20px; background:#444;"></div>
+    <button class="hud-btn" style="color:#f59e0b;" onclick="openResearchModal()">🔬 Badania</button>
+    <button class="hud-btn" style="color:var(--text-cyan);" onclick="triggerCacheSelectionMode()">📦 Zbuduj Cache</button>
+    <button class="hud-btn" onclick="saveToGitHubGist()">☁️ GitHub Save</button>
   </div>
 
-  <!-- CACHE SUB-FACTORY CREATION MODAL -->
-  <div id="modal-cache-builder" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="if-modal-bg border border-amber-500/50 rounded-lg p-6 max-w-lg w-full shadow-2xl">
-      <div class="flex items-center gap-3 text-amber-400 mb-2">
-        <span class="text-2xl">📦</span>
-        <h3 class="text-base font-bold uppercase tracking-wider">Sub-Factory Cache Engine</h3>
-      </div>
-      <p class="text-xs text-slate-300 leading-relaxed mb-4">
-        Freezes selected parcels into a single consolidated Blackbox node. All internal loops and slot simulations are compiled to a static vector at <b>O(1)</b> performance per tick.
-      </p>
-
-      <div class="bg-black/40 p-3 rounded border border-white/10 mb-4 text-xs font-mono space-y-2">
-        <div class="text-slate-400">Selected Parcels: <span id="cache-count" class="text-white font-bold">0</span></div>
-        <div class="text-red-400">Net Input required: <span id="cache-inputs" class="text-white">-</span></div>
-        <div class="text-emerald-400">Net Output produced: <span id="cache-outputs" class="text-white">-</span></div>
-        <div class="text-amber-400">Net Power: <span id="cache-power" class="text-white">0 MW</span></div>
+  <!-- OKNO PARCELA (1:1 ze zrzutu ekranu 2) -->
+  <div id="parcel-modal-backdrop">
+    <div id="parcel-modal">
+      <div class="pm-header">
+        <div class="pm-title">
+          <span id="pm-name">Production-1</span>
+          <span style="cursor:pointer; font-size:15px;" onclick="renameCurrentParcel()">✏️</span>
+          <span style="cursor:pointer; font-size:15px;">🎨</span>
+          <span class="pm-type" id="pm-type-label">Production Parcel</span>
+        </div>
+        <div class="pm-close" onclick="closeParcelModal()">✕</div>
       </div>
 
-      <div class="mb-4">
-        <label class="block text-xs text-slate-300 mb-1">Module Name</label>
-        <input id="cache-mod-name" type="text" value="Microchip Sub-Factory T1" class="if-search-input w-full px-3 py-2 text-xs rounded">
+      <div class="pm-content">
+        <!-- Lewo: Zasoby -->
+        <div class="pm-left">
+          <table class="res-table">
+            <thead>
+              <tr>
+                <th>Resource</th>
+                <th>Qty</th>
+                <th>Rate (max)</th>
+                <th>Output</th>
+              </tr>
+            </thead>
+            <tbody id="pm-resource-tbody">
+              <!-- Renderowane dynamicznie -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Prawo: Budynki i sloty -->
+        <div class="pm-right">
+          <div class="pm-stats-block">
+            Storage: <span id="pm-stat-storage">1,250</span><br>
+            Connections: <span id="pm-stat-connections">0 / 8</span><br>
+            Building Slots: <span id="pm-stat-slots">0 / 32</span> 
+            <span style="font-size:11px; color:#888;" id="pm-stat-bonus">32 Free → + 5.3 Extra Connections</span><br>
+            <label style="font-size:11px; cursor:pointer;"><input type="checkbox" id="chk-smart-sort"> Smart Sort</label>
+            <label style="font-size:11px; cursor:pointer; margin-left: 10px;"><input type="checkbox" id="chk-util"> Utilization Bar</label>
+          </div>
+
+          <input type="text" class="pm-search" id="pm-building-search" placeholder="Search buildings..." oninput="renderBuildingCatalog()">
+
+          <div class="pm-buildings-list" id="pm-buildings-container">
+            <!-- Renderowane dynamicznie -->
+          </div>
+        </div>
       </div>
 
-      <div class="flex justify-end gap-2">
-        <button onclick="closeCacheBuilder()" class="px-4 py-1.5 text-xs bg-[#333] hover:bg-[#444] text-slate-300 rounded">Cancel</button>
-        <button onclick="commitSubFactoryCache()" class="px-4 py-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-400 text-black rounded">Compile Cache Node</button>
+      <div class="pm-footer">
+        <button class="btn-delete-parcel" onclick="deleteCurrentParcel()">🗑️ Delete Parcel</button>
+        <span style="font-size:11px; color:#777;" id="pm-footer-id">parcel-489</span>
       </div>
     </div>
   </div>
 
-  <!-- CLOUD SAVE / GITHUB GIST MODAL -->
-  <div id="modal-cloud" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="if-modal-bg border border-sky-500/40 rounded-lg p-6 max-w-lg w-full shadow-2xl">
-      <div class="flex items-center gap-3 text-sky-400 mb-2">
-        <span class="text-2xl">☁️</span>
-        <h3 class="text-base font-bold uppercase tracking-wider">GitHub Gist Cloud Sync</h3>
+  <!-- OKNO BADAŃ NAUKOWYCH -->
+  <div id="research-modal">
+    <div style="background:#181b22; width: 620px; border:1px solid #334155; border-radius:6px; padding:20px; max-height:80vh; display:flex; flex-direction:column;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <h3 style="color:#fff;">DRZEWO TECHNOLOGICZNE</h3>
+        <span style="cursor:pointer;" onclick="closeResearchModal()">✕</span>
       </div>
-      <p class="text-xs text-slate-400 mb-4 leading-relaxed">
-        Save or load your entire factory graph and parcel states to a private GitHub Gist or copy the raw JSON.
-      </p>
-
-      <div class="space-y-3 text-xs mb-4">
-        <div>
-          <label class="block text-slate-300 mb-1">GitHub Personal Access Token (PAT with 'gist' scope)</label>
-          <input id="gh-token" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" class="if-search-input w-full px-3 py-2 rounded">
-        </div>
-        <div>
-          <label class="block text-slate-300 mb-1">Gist ID (leave empty to create a new Gist)</label>
-          <input id="gh-gist-id" type="text" placeholder="e.g. 7f8c9b0e123456..." class="if-search-input w-full px-3 py-2 rounded">
-        </div>
-      </div>
-
-      <div class="flex flex-wrap gap-2 justify-between border-t border-[#333] pt-4">
-        <div class="flex gap-2">
-          <button onclick="copySaveJSON()" class="px-3 py-1.5 bg-[#333] hover:bg-[#444] rounded text-xs font-mono">📋 Copy JSON</button>
-          <button onclick="importSaveJSONPrompt()" class="px-3 py-1.5 bg-[#333] hover:bg-[#444] rounded text-xs font-mono">📥 Paste JSON</button>
-        </div>
-        <div class="flex gap-2">
-          <button onclick="closeCloudModal()" class="px-3 py-1.5 bg-[#333] text-slate-300 rounded text-xs">Close</button>
-          <button onclick="loadFromGistCloud()" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded text-xs font-bold">Load Gist</button>
-          <button onclick="saveToGistCloud()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-bold">Save to Gist</button>
-        </div>
-      </div>
+      <div style="flex:1; overflow-y:auto;" id="research-list"></div>
     </div>
-  </div>
-
-  <!-- Notification Toast -->
-  <div id="toast" class="fixed top-14 left-1/2 transform -translate-x-1/2 bg-sky-500 text-slate-950 font-bold px-4 py-2 rounded-full text-xs shadow-xl transition-opacity duration-300 opacity-0 pointer-events-none z-50">
-    Notification
   </div>
 
   <script>
-    // --- SYNTHESIZER SOUND ENGINE (Tone Web Audio API) ---
-    let audioCtx = null;
-    let soundEnabled = true;
+    // --- BAZA WIEDZY: BUDYNKI, KOSZTY, RECEPTURY ---
+    const BUILDINGS_DB = {
+      // Wydobycie
+      iron_miner: { name: "Iron Miner", icon: "⛏️", techReq: null, cost: { iron_ore: 5 }, in: {}, out: { iron_ore: 1 }, power: 1 },
+      copper_miner: { name: "Copper Miner", icon: "⛏️", techReq: null, cost: { iron_ore: 5 }, in: {}, out: { copper_ore: 1 }, power: 1 },
+      coal_miner: { name: "Coal Miner", icon: "⛏️", techReq: "coal_tech", cost: { iron_plate: 5 }, in: {}, out: { coal: 1 }, power: 1 },
+      stone_miner: { name: "Stone Miner", icon: "🪨", techReq: null, cost: { iron_ore: 5 }, in: {}, out: { stone: 1 }, power: 1 },
 
-    function playAudio(freq, type = 'sine', duration = 0.08, vol = 0.08) {
-      if (!soundEnabled) return;
-      try {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + duration);
-      } catch (e) {}
-    }
+      // Hutnictwo i przetwórstwo
+      iron_smelter: { name: "Iron Smelter", icon: "🏭", techReq: null, cost: { iron_ore: 10, stone: 5 }, in: { iron_ore: 2 }, out: { iron_plate: 1 }, power: 2 },
+      copper_smelter: { name: "Copper Smelter", icon: "🏭", techReq: null, cost: { copper_ore: 10, stone: 5 }, in: { copper_ore: 2 }, out: { copper_plate: 1 }, power: 2 },
+      kiln: { name: "Kiln", icon: "🏺", techReq: null, cost: { stone: 10 }, in: { stone: 2 }, out: { brick: 1 }, power: 1 },
+      cable_extruder: { name: "Cable Extruder", icon: "🌀", techReq: "electronics_1", cost: { iron_plate: 15, copper_plate: 10 }, in: { copper_plate: 1 }, out: { wire: 2 }, power: 3 },
+      gear_press: { name: "Gear Press", icon: "⚙️", techReq: "automation_1", cost: { iron_plate: 20 }, in: { iron_plate: 2 }, out: { gear: 1 }, power: 4 },
+      steel_mill: { name: "Steel Mill", icon: "🏗️", techReq: "steel_tech", cost: { iron_plate: 30, brick: 20 }, in: { iron_plate: 3, coal: 2 }, out: { steel: 1 }, power: 8 },
 
-    document.getElementById('btn-sound-toggle').addEventListener('click', () => {
-      soundEnabled = !soundEnabled;
-      document.getElementById('btn-sound-toggle').innerText = `🔊 Sound: ${soundEnabled ? 'ON' : 'OFF'}`;
-    });
+      // Energetyka
+      coal_power: { name: "Coal Power Plant", icon: "⚡", techReq: "coal_tech", cost: { iron_plate: 25, brick: 15 }, in: { coal: 1 }, out: {}, genPower: 25 },
 
-    function showToast(msg, duration = 2500) {
-      const t = document.getElementById('toast');
-      t.innerText = msg;
-      t.style.opacity = '1';
-      setTimeout(() => { t.style.opacity = '0'; }, duration);
-    }
-
-    // --- GAME DATA: RESOURCES & BUILDINGS DEFINITION ---
-    const RESOURCES = {
-      iron_ore: { name: 'Iron Ore', icon: '🪨', color: '#c2410c' },
-      copper_ore: { name: 'Copper Ore', icon: '🪨', color: '#b45309' },
-      coal: { name: 'Coal', icon: '⚫', color: '#334155' },
-      stone: { name: 'Stone', icon: '🧱', color: '#78716c' },
-      iron_plate: { name: 'Iron Ingot', icon: '🪙', color: '#94a3b8' },
-      copper_plate: { name: 'Copper Ingot', icon: '🪙', color: '#fb923c' },
-      cable: { name: 'Copper Cable', icon: '〰️', color: '#f59e0b' },
-      gear: { name: 'Iron Gear', icon: '⚙️', color: '#cbd5e1' },
-      steel: { name: 'Steel Plate', icon: '🛡️', color: '#64748b' },
-      red_science: { name: 'Red Science Pack', icon: '🧪', color: '#ef4444' },
-      green_science: { name: 'Green Science Pack', icon: '🧪', color: '#22c55e' }
+      // Badania
+      red_science_lab: { name: "Red Science Laboratory", icon: "🧪", techReq: "science_1", cost: { iron_plate: 25, gear: 10 }, in: { iron_plate: 1, gear: 1 }, out: { red_science: 1 }, power: 5 },
+      green_science_lab: { name: "Green Science Laboratory", icon: "🧪", techReq: "science_2", cost: { steel: 20, wire: 30 }, in: { wire: 3, red_science: 1 }, out: { green_science: 1 }, power: 10 }
     };
 
-    // Authentic building catalog matching user's screenshot
-    const BUILDINGS = {
-      kiln: {
-        name: 'Kiln',
-        icon: '🏺',
-        category: 'production',
-        in: { stone: 2 },
-        out: { iron_plate: 1 },
-        power: -2,
-        rate: 1.0,
-        desc: 'Smelts basic stone into rough ingots.'
-      },
-      iron_smelter: {
-        name: 'Iron Smelter',
-        icon: '🏭',
-        category: 'production',
-        in: { iron_ore: 2 },
-        out: { iron_plate: 2 },
-        power: -4,
-        rate: 1.5,
-        desc: 'Smelts raw iron ore into pure iron ingots.'
-      },
-      copper_smelter: {
-        name: 'Copper Smelter',
-        icon: '🏭',
-        category: 'production',
-        in: { copper_ore: 2 },
-        out: { copper_plate: 2 },
-        power: -4,
-        rate: 1.5,
-        desc: 'Smelts raw copper ore into copper ingots.'
-      },
-      iron_miner: {
-        name: 'Iron Miner',
-        icon: '⛏️',
-        category: 'extraction',
-        in: {},
-        out: { iron_ore: 3 },
-        power: -2,
-        rate: 2.0,
-        desc: 'Extracts Iron Ore directly from subterranean veins.'
-      },
-      stone_miner: {
-        name: 'Stone Miner',
-        icon: '⛏️',
-        category: 'extraction',
-        in: {},
-        out: { stone: 3 },
-        power: -2,
-        rate: 2.0,
-        desc: 'Excavates raw quarry stone.'
-      },
-      coal_miner: {
-        name: 'Coal Miner',
-        icon: '⛏️',
-        category: 'extraction',
-        in: {},
-        out: { coal: 3 },
-        power: -2,
-        rate: 2.0,
-        desc: 'Mines combustible coal deposits.'
-      },
-      copper_miner: {
-        name: 'Copper Miner',
-        icon: '⛏️',
-        category: 'extraction',
-        in: {},
-        out: { copper_ore: 3 },
-        power: -2,
-        rate: 2.0,
-        desc: 'Extracts rich copper mineral veins.'
-      },
-      coal_power_plant: {
-        name: 'Coal Power Plant',
-        icon: '⚡',
-        category: 'power',
-        in: { coal: 1 },
-        out: {},
-        power: 45, // Generates 45 MW
-        rate: 0.5,
-        desc: 'Combusts coal to produce steady electrical energy.'
-      },
-      gear_press: {
-        name: 'Gear Press',
-        icon: '⚙️',
-        category: 'production',
-        in: { iron_plate: 2 },
-        out: { gear: 1 },
-        power: -5,
-        rate: 1.0,
-        desc: 'Stamps structural iron gears for advanced machinery.'
-      },
-      cable_extruder: {
-        name: 'Cable Extruder',
-        icon: '🧶',
-        category: 'production',
-        in: { copper_plate: 1 },
-        out: { cable: 2 },
-        power: -3,
-        rate: 2.0,
-        desc: 'Extrudes conductive copper cable lines.'
-      },
-      steel_mill: {
-        name: 'Steel Mill',
-        icon: '🏭',
-        category: 'production',
-        in: { iron_plate: 4, coal: 2 },
-        out: { steel: 1 },
-        power: -12,
-        rate: 0.8,
-        desc: 'High-temperature furnace that refines iron into steel.'
-      },
-      red_science_lab: {
-        name: 'Red Science Laboratory',
-        icon: '🧪',
-        category: 'science',
-        in: { iron_plate: 2, gear: 1 },
-        out: { red_science: 1 },
-        power: -8,
-        rate: 0.5,
-        desc: 'Conducts automation research using gears and iron.'
-      },
-      green_science_lab: {
-        name: 'Green Science Laboratory',
-        icon: '🧪',
-        category: 'science',
-        in: { cable: 2, steel: 1 },
-        out: { green_science: 1 },
-        power: -15,
-        rate: 0.3,
-        desc: 'Advanced tier logistical research laboratory.'
-      }
+    // DRZEWO BADAŃ
+    const RESEARCH_DB = {
+      automation_1: { name: "Automatyzacja I (Gear Press)", cost: 20, unlocked: false, desc: "Pozwala tłoczyć koła zębate niezbędne do budowy laboratoriów." },
+      coal_tech: { name: "Gospodarka Węglowa & Energetyka", cost: 40, unlocked: false, desc: "Wydobycie węgla i generatory węglowe likwidujące deficyt mocy." },
+      science_1: { name: "Metodologia Naukowa (Red Science)", cost: 60, unlocked: false, desc: "Budowa laboratoriów czerwonej nauki." },
+      electronics_1: { name: "Podstawy Elektroniki (Cable Extruder)", cost: 100, unlocked: false, desc: "Wytłaczanie kabli miedzianych." },
+      steel_tech: { name: "Hutnictwo Stali", cost: 200, unlocked: false, desc: "Wytop stali z żelaza i węgla." },
+      science_2: { name: "Zaawansowana Synteza (Green Science)", cost: 350, unlocked: false, desc: "Laboratoria zielonej nauki." },
+      cache_engine: { name: "Architektura Sub-Factory Cache", cost: 500, unlocked: false, desc: "Odblokowuje funkcję kompresji fabryk w O(1) Blackboxy." }
     };
 
-    // --- GAME STATE & PARCELS GRAPH ---
-    let camera = {
-      x: window.innerWidth / 2 - 320,
-      y: window.innerHeight / 2 - 240,
-      zoom: 1.0,
-      isPanning: false,
-      startX: 0,
-      startY: 0
+    // CELE GRY (Milestones)
+    const MILESTONES = [
+      { id: 1, text: "Etap 1: Wyprodukuj 50x Iron Plate w magazynie", check: (res) => (res.iron_plate || 0) >= 50, reward: "Odblokowano dostęp do badań!" },
+      { id: 2, text: "Etap 2: Odblokuj badanie Automatyzacja I i wyprodukuj 30x Gear", check: (res) => (res.gear || 0) >= 30 && RESEARCH_DB.automation_1.unlocked, reward: "+100 Punktów Nauki" },
+      { id: 3, text: "Etap 3: Uruchom generator węglowy i zgromadź 100x Węgla", check: (res) => (res.coal || 0) >= 100, reward: "Zwiększono limit połączeń w Parcelach" },
+      { id: 4, text: "Etap 4: Skompresuj dowolny moduł do Cache (Zbadaj Cache Engine)", check: () => state.cachedClusters.length > 0, reward: "Mistrz optymalizacji!" }
+    ];
+
+    // STAN GRY
+    let state = {
+      sciencePoints: 0,
+      currentMilestoneIndex: 0,
+      parcels: [],
+      wires: [], // { id, fromParcelId, toParcelId, resourceKey }
+      cachedClusters: []
     };
 
-    let parcels = [];
-    let wires = [];
-    let particles = [];
+    let activeParcelId = null;
+    let linkingParcel = null;
+    let isCacheSelectMode = false;
+    let selectedForCache = [];
 
-    let activeTool = 'select'; // 'select', 'cache_select'
-    let selectedParcelIds = new Set();
-    let currentOpenParcel = null;
-    let wiringSource = null; // { parcelId, portIdx, isOutput, currentX, currentY }
-    let marquee = { active: false, startX: 0, startY: 0, currentX: 0, currentY: 0 };
-    let draggedParcel = null;
-    let dragOffset = { x: 0, y: 0 };
-
-    let globalResearchPoints = 0;
-    let parcelCounter = 100;
-
-    const canvas = document.getElementById('game-canvas');
+    // Canvas & Viewport
+    const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
+    let pan = { x: 100, y: 100 };
+    let zoom = 1;
+    let isDragging = false;
+    let dragStart = { x: 0, y: 0 };
 
-    function resizeCanvas() {
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = window.innerWidth * dpr;
-      canvas.height = window.innerHeight * dpr;
-      ctx.scale(dpr, dpr);
-    }
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
+    // --- INICJALIZACJA STANU POCZĄTKOWEGO ---
+    function initGame() {
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
 
-    function screenToWorld(sx, sy) {
-      return {
-        x: (sx - camera.x) / camera.zoom,
-        y: (sy - camera.y) / camera.zoom
-      };
-    }
+      // Początkowy stan parceli startowej z darmowymi surowcami na rozruch
+      const p1 = createParcel('production', 250, 200, "Start Factory");
+      p1.resources.iron_ore = 60;
+      p1.resources.stone = 30;
+      p1.resources.copper_ore = 40;
+      state.parcels.push(p1);
 
-    function worldToScreen(wx, wy) {
-      return {
-        x: wx * camera.zoom + camera.x,
-        y: wy * camera.zoom + camera.y
-      };
+      updateStatsUI();
+      setInterval(simulationTick, 1000); // 1 Tick na sekundę
+      requestAnimationFrame(renderLoop);
     }
 
-    // Create a new Parcel object
-    function createParcelInstance(type, x, y, customName = null, customCache = null) {
-      parcelCounter++;
-      const id = 'parcel-' + parcelCounter;
-      let name = customName || (type.charAt(0).toUpperCase() + type.slice(1) + '-' + (parcels.length + 1));
-      
-      let baseSlots = 32;
-      let color = '#0284c7'; // Production default blue
-      if (type === 'extraction') color = '#c2410c';
-      if (type === 'node') { color = '#475569'; baseSlots = 8; }
-      if (type === 'warehouse') { color = '#7c3aed'; baseSlots = 16; }
-
+    function createParcel(type, x, y, customName = null) {
+      const id = 'parcel-' + Math.floor(Math.random() * 900 + 100);
       return {
         id,
-        type, // 'production', 'extraction', 'node', 'warehouse', 'cache_block'
-        name,
+        name: customName || (type.charAt(0).toUpperCase() + type.slice(1) + '-' + (state.parcels.length + 1)),
+        type, // extraction, production, node, warehouse[cite: 1]
         x, y,
-        width: 80,
-        height: 54,
-        color,
-        storageCapacity: 1250,
-        totalSlots: baseSlots,
-        buildings: {}, // { buildingKey: count }
-        resources: {}, // { resourceKey: qty }
-        rates: {},     // { resourceKey: currentNetPerSec }
-        outputWhitelist: {}, // { resourceKey: boolean }
-        isCached: !!customCache,
-        cacheData: customCache || null,
-        portsIn: 4,
-        portsOut: 4
+        w: 42, h: 42,
+        color: type === 'extraction' ? '#bd5a24' : (type === 'production' ? '#2783bd' : (type === 'node' ? '#683cb0' : '#888888')),
+        storageLimit: 1250,
+        maxSlots: 32,
+        resources: {},
+        outputFlags: {}, // resKey: bool
+        buildings: {} // buildingKey: count
       };
     }
 
-    function initializeStarterGame() {
-      // Create initial Parcels matching typical Incremental Factory layout
-      const pExt = createParcelInstance('extraction', -320, -100, "Extraction-1");
-      pExt.buildings['iron_miner'] = 4;
-      pExt.buildings['coal_miner'] = 2;
-      pExt.buildings['copper_miner'] = 3;
-
-      const pProd = createParcelInstance('production', -100, -80, "Production-1");
-      pProd.buildings['iron_smelter'] = 4;
-      pProd.buildings['coal_power_plant'] = 1;
-      pProd.buildings['gear_press'] = 2;
-
-      const pWire = createParcelInstance('production', -100, 100, "Production-2");
-      pWire.buildings['copper_smelter'] = 2;
-      pWire.buildings['cable_extruder'] = 3;
-
-      const pScience = createParcelInstance('production', 140, -40, "Research-1");
-      pScience.buildings['red_science_lab'] = 2;
-
-      const pWarehouse = createParcelInstance('warehouse', 360, -40, "Warehouse-1");
-
-      parcels = [pExt, pProd, pWire, pScience, pWarehouse];
-
-      // Connect wires between parcels
-      connectParcels(pExt.id, 0, pProd.id, 0); // Iron ore & coal to smelters
-      connectParcels(pExt.id, 1, pWire.id, 0); // Copper ore to cable line
-      connectParcels(pProd.id, 0, pScience.id, 0); // Iron plates & gears to science
-      connectParcels(pWire.id, 0, pScience.id, 1); // Cables to science
-      connectParcels(pScience.id, 0, pWarehouse.id, 0); // Science to warehouse
-
-      updateHudCounts();
-    }
-
-    function connectParcels(fromId, fromPort, toId, toPort) {
-      if (fromId === toId) return;
-      const exists = wires.some(w => w.fromId === fromId && w.fromPort === fromPort && w.toId === toId && w.toPort === toPort);
-      if (exists) return;
-
-      wires.push({
-        id: 'wire_' + Math.random().toString(36).substr(2, 9),
-        fromId,
-        fromPort,
-        toId,
-        toPort,
-        color: '#22c55e'
-      });
-      playAudio(540, 'triangle', 0.05, 0.07);
-    }
-
-    function getParcelPortPosition(parcel, isOutput, portIdx) {
-      const count = isOutput ? parcel.portsOut : parcel.portsIn;
-      const spacing = parcel.height / (count + 1);
-      return {
-        x: isOutput ? parcel.x + parcel.width : parcel.x,
-        y: parcel.y + spacing * (portIdx + 1)
+    // --- KOSZTY STAWIANIA PARCELI NA MAPIE ---
+    function buyAndSpawnParcel(type) {
+      // Sprawdź globalne zasoby w magazynach
+      const costs = {
+        extraction: { iron_plate: 50 },
+        production: { iron_plate: 100, copper_plate: 50 },
+        node: { iron_plate: 25 },
+        warehouse: { iron_plate: 150, copper_plate: 100 }
       };
+
+      const c = costs[type];
+      if (!consumeGlobalResources(c)) {
+        alert("Brak surowców w magazynach na postawienie parceli! Wymagane: " + JSON.stringify(c));
+        return;
+      }
+
+      const screenCenterX = (window.innerWidth / 2 - pan.x) / zoom;
+      const screenCenterY = (window.innerHeight / 2 - pan.y) / zoom;
+      const p = createParcel(type, screenCenterX + (Math.random()*40-20), screenCenterY + (Math.random()*40-20));
+      state.parcels.push(p);
+      updateStatsUI();
     }
 
-    // --- MAIN TICK SIMULATION ENGINE (10 Ticks/sec) ---
-    const TICK_INTERVAL = 100; // ms
-    let lastTick = performance.now();
-    let totalGeneratedPower = 0;
-    let totalConsumedPower = 0;
+    function consumeGlobalResources(costObj) {
+      // 1. Sprawdź dostępność
+      for (let res in costObj) {
+        let total = 0;
+        state.parcels.forEach(p => total += (p.resources[res] || 0));
+        if (total < costObj[res]) return false;
+      }
+      // 2. Pobierz
+      for (let res in costObj) {
+        let needed = costObj[res];
+        for (let p of state.parcels) {
+          let avail = p.resources[res] || 0;
+          let take = Math.min(avail, needed);
+          p.resources[res] -= take;
+          needed -= take;
+          if (needed <= 0) break;
+        }
+      }
+      return true;
+    }
 
+    // --- SYMULACJA FIZYCZNO-EKONOMICZNA ---
     function simulationTick() {
-      const dt = 0.1; // 1/10th of a second
-      let powerProduced = 0;
-      let powerDemanded = 0;
+      let totalPowerGen = 0;
+      let totalPowerNeed = 0;
 
-      // 1. Calculate overall grid power balance
-      parcels.forEach(p => {
-        if (p.isCached && p.cacheData) {
-          if (p.cacheData.power < 0) powerDemanded += Math.abs(p.cacheData.power);
-          else powerProduced += p.cacheData.power;
-          return;
-        }
-
+      // 1. Bilans energii
+      state.parcels.forEach(p => {
         for (let bKey in p.buildings) {
           const count = p.buildings[bKey];
-          const b = BUILDINGS[bKey];
-          if (!b || count <= 0) continue;
-          if (b.power > 0) powerProduced += b.power * count;
-          else powerDemanded += Math.abs(b.power) * count;
+          const b = BUILDINGS_DB[bKey];
+          if (b.genPower) totalPowerGen += b.genPower * count;
+          if (b.power) totalPowerNeed += b.power * count;
         }
       });
 
-      totalGeneratedPower = powerProduced;
-      totalConsumedPower = powerDemanded;
-      const powerRatio = powerDemanded === 0 ? 1.0 : Math.min(1.0, powerProduced / powerDemanded);
+      const powerRatio = totalPowerNeed === 0 ? 1 : Math.min(1, totalPowerGen / totalPowerNeed);
+      document.getElementById('val-power').innerText = `${totalPowerNeed.toFixed(0)} / ${totalPowerGen.toFixed(0)} MW (${(powerRatio*100).toFixed(0)}%)`;
 
-      document.getElementById('top-power-stat').innerText = `⚡ ${powerDemanded.toFixed(0)}/${powerProduced.toFixed(0)} MW (${(powerRatio * 100).toFixed(0)}%)`;
-      document.getElementById('top-science-stat').innerText = `🧪 ${Math.floor(globalResearchPoints)} SP`;
+      // 2. Produkcja wewnątrz Parceli
+      state.parcels.forEach(p => {
+        let totalCurrentItems = Object.values(p.resources).reduce((a,b)=>a+b, 0);
 
-      // 2. Simulate individual Parcels
-      parcels.forEach(p => {
-        let delta = {};
-        for (let k in RESOURCES) delta[k] = 0;
-
-        if (p.isCached && p.cacheData) {
-          // O(1) Vector calculation
-          let factor = powerRatio;
-          for (let inRes in p.cacheData.netInputs) {
-            const need = p.cacheData.netInputs[inRes] * dt * powerRatio;
-            const have = p.resources[inRes] || 0;
-            if (have < need) factor = Math.min(factor, have / Math.max(0.001, need));
-          }
-
-          if (factor > 0.05) {
-            for (let inRes in p.cacheData.netInputs) {
-              const consumed = p.cacheData.netInputs[inRes] * dt * factor;
-              p.resources[inRes] = Math.max(0, (p.resources[inRes] || 0) - consumed);
-              delta[inRes] -= consumed / dt;
-            }
-            for (let outRes in p.cacheData.netOutputs) {
-              const made = p.cacheData.netOutputs[outRes] * dt * factor;
-              p.resources[outRes] = Math.min(p.storageCapacity, (p.resources[outRes] || 0) + made);
-              delta[outRes] += made / dt;
-            }
-          }
-          p.rates = delta;
-          return;
-        }
-
-        // Standard Parcel slot simulation
         for (let bKey in p.buildings) {
           const count = p.buildings[bKey];
-          const b = BUILDINGS[bKey];
-          if (!b || count <= 0) continue;
+          if (count <= 0) continue;
+          const b = BUILDINGS_DB[bKey];
 
-          if (b.category === 'power') {
-            // Power generation consumes fuel
-            const neededFuel = b.rate * count * dt;
-            if ((p.resources['coal'] || 0) >= neededFuel) {
-              p.resources['coal'] -= neededFuel;
-              delta['coal'] -= neededFuel / dt;
-            }
-            continue;
-          }
-
-          // Check ingredient availability
+          // Sprawdź czy są surowce wejściowe
           let canRun = true;
-          let runFactor = powerRatio;
-
           for (let inRes in b.in) {
-            const need = b.in[inRes] * b.rate * count * dt;
-            const have = p.resources[inRes] || 0;
-            if (have < need) {
-              runFactor = Math.min(runFactor, have / Math.max(0.001, need));
+            if ((p.resources[inRes] || 0) < b.in[inRes] * count) {
+              canRun = false; break;
             }
           }
 
-          if (runFactor > 0.05) {
-            // Consume
+          if (canRun && (totalCurrentItems < p.storageLimit)) {
+            // Zużycie
             for (let inRes in b.in) {
-              const used = b.in[inRes] * b.rate * count * dt * runFactor;
-              p.resources[inRes] = Math.max(0, (p.resources[inRes] || 0) - used);
-              delta[inRes] -= used / dt;
+              p.resources[inRes] -= b.in[inRes] * count;
             }
-            // Produce
+            // Zysk
             for (let outRes in b.out) {
-              const made = b.out[outRes] * b.rate * count * dt * runFactor;
-              const current = p.resources[outRes] || 0;
-              if (current < p.storageCapacity) {
-                p.resources[outRes] = Math.min(p.storageCapacity, current + made);
-                delta[outRes] += made / dt;
+              if (outRes === 'red_science') state.sciencePoints += count * 0.5;
+              else if (outRes === 'green_science') state.sciencePoints += count * 1.5;
+              else {
+                p.resources[outRes] = (p.resources[outRes] || 0) + b.out[outRes] * count;
               }
-
-              // If science pack produced, tally into global research
-              if (outRes === 'red_science') globalResearchPoints += made * 0.5;
-              if (outRes === 'green_science') globalResearchPoints += made * 1.5;
-            }
-          }
-        }
-
-        p.rates = delta;
-      });
-
-      // 3. Transport along connection wires between Parcels
-      wires.forEach(w => {
-        const pFrom = parcels.find(p => p.id === w.fromId);
-        const pTo = parcels.find(p => p.id === w.toId);
-        if (!pFrom || !pTo) return;
-
-        // Find available resources eligible for output
-        for (let rKey in pFrom.resources) {
-          const qty = pFrom.resources[rKey];
-          if (qty > 1) {
-            // If output whitelist is set, enforce it
-            if (pFrom.outputWhitelist && pFrom.outputWhitelist[rKey] === false) continue;
-
-            const space = pTo.storageCapacity - (pTo.resources[rKey] || 0);
-            if (space > 1) {
-              const transfer = Math.min(qty, 2.5); // max 25 items/sec per wire
-              pFrom.resources[rKey] -= transfer;
-              pTo.resources[rKey] = (pTo.resources[rKey] || 0) + transfer;
-
-              // Spawn animated particle pulse
-              if (Math.random() < 0.3) {
-                particles.push({
-                  wireId: w.id,
-                  progress: 0,
-                  speed: 0.04 + Math.random() * 0.02,
-                  color: RESOURCES[rKey]?.color || '#ffffff'
-                });
-              }
-              break;
             }
           }
         }
       });
 
-      // Refresh opened modal view if open
-      if (currentOpenParcel) {
-        updateOpenParcelModal();
-      }
-    }
-    setInterval(simulationTick, TICK_INTERVAL);
-
-    // --- CANVAS GRAPH RENDERING (2D) ---
-    function renderCanvas() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      ctx.save();
-      ctx.translate(camera.x, camera.y);
-      ctx.scale(camera.zoom, camera.zoom);
-
-      // Background dot grid
-      drawGrid();
-
-      // Curved Bezier connection wires
-      drawWires();
-
-      // Flowing resource packet particles
-      drawParticles();
-
-      // Wire currently being drawn by dragging from a port
-      if (wiringSource) {
-        const mouseWorld = screenToWorld(wiringSource.currentX, wiringSource.currentY);
-        const fromP = parcels.find(p => p.id === wiringSource.parcelId);
-        if (fromP) {
-          const p1 = getParcelPortPosition(fromP, wiringSource.isOutput, wiringSource.portIdx);
-          drawBezierWire(p1.x, p1.y, mouseWorld.x, mouseWorld.y, '#38bdf8', true);
-        }
-      }
-
-      // Parcels
-      drawParcels();
-
-      // Selection marquee
-      if (marquee.active) {
-        const p1 = screenToWorld(marquee.startX, marquee.startY);
-        const p2 = screenToWorld(marquee.currentX, marquee.currentY);
-        const rx = Math.min(p1.x, p2.x);
-        const ry = Math.min(p1.y, p2.y);
-        const rw = Math.abs(p1.x - p2.x);
-        const rh = Math.abs(p1.y - p2.y);
-
-        ctx.strokeStyle = activeTool === 'cache_select' ? '#fbbf24' : '#38bdf8';
-        ctx.fillStyle = activeTool === 'cache_select' ? 'rgba(251, 191, 36, 0.15)' : 'rgba(56, 189, 248, 0.1)';
-        ctx.lineWidth = 1.5 / camera.zoom;
-        ctx.setLineDash([4 / camera.zoom, 4 / camera.zoom]);
-        ctx.fillRect(rx, ry, rw, rh);
-        ctx.strokeRect(rx, ry, rw, rh);
-        ctx.setLineDash([]);
-      }
-
-      ctx.restore();
-      requestAnimationFrame(renderCanvas);
-    }
-
-    function drawGrid() {
-      const gridSize = 40;
-      const vpLeft = -camera.x / camera.zoom;
-      const vpTop = -camera.y / camera.zoom;
-      const vpRight = (canvas.width - camera.x) / camera.zoom;
-      const vpBottom = (canvas.height - camera.y) / camera.zoom;
-
-      const startX = Math.floor(vpLeft / gridSize) * gridSize;
-      const startY = Math.floor(vpTop / gridSize) * gridSize;
-
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-      for (let x = startX; x <= vpRight; x += gridSize) {
-        for (let y = startY; y <= vpBottom; y += gridSize) {
-          ctx.beginPath();
-          ctx.arc(x, y, 1.2 / camera.zoom, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-    }
-
-    function drawBezierWire(x1, y1, x2, y2, color, isDraft = false) {
-      ctx.beginPath();
-      const dx = Math.abs(x2 - x1) * 0.55;
-      ctx.moveTo(x1, y1);
-      ctx.bezierCurveTo(x1 + dx, y1, x2 - dx, y2, x2, y2);
-
-      ctx.strokeStyle = color;
-      ctx.lineWidth = (isDraft ? 2 : 3) / camera.zoom;
-      ctx.lineCap = 'round';
-      ctx.stroke();
-
-      if (!isDraft) {
-        ctx.strokeStyle = color;
-        ctx.globalAlpha = 0.25;
-        ctx.lineWidth = 6 / camera.zoom;
-        ctx.stroke();
-        ctx.globalAlpha = 1.0;
-      }
-    }
-
-    function drawWires() {
-      wires.forEach(w => {
-        const pFrom = parcels.find(p => p.id === w.fromId);
-        const pTo = parcels.find(p => p.id === w.toId);
-        if (!pFrom || !pTo) return;
-
-        const p1 = getParcelPortPosition(pFrom, true, w.fromPort);
-        const p2 = getParcelPortPosition(pTo, false, w.toPort);
-        drawBezierWire(p1.x, p1.y, p2.x, p2.y, w.color);
-      });
-    }
-
-    function drawParticles() {
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const pt = particles[i];
-        const w = wires.find(item => item.id === pt.wireId);
-        if (!w) { particles.splice(i, 1); continue; }
-
-        const pFrom = parcels.find(p => p.id === w.fromId);
-        const pTo = parcels.find(p => p.id === w.toId);
-        if (!pFrom || !pTo) { particles.splice(i, 1); continue; }
-
-        const p1 = getParcelPortPosition(pFrom, true, w.fromPort);
-        const p2 = getParcelPortPosition(pTo, false, w.toPort);
-
-        pt.progress += pt.speed;
-        if (pt.progress >= 1) {
-          particles.splice(i, 1);
-          continue;
-        }
-
-        const t = pt.progress;
-        const dx = Math.abs(p2.x - p1.x) * 0.55;
-        const cp1x = p1.x + dx, cp1y = p1.y;
-        const cp2x = p2.x - dx, cp2y = p2.y;
-
-        const bx = Math.pow(1-t, 3)*p1.x + 3*Math.pow(1-t, 2)*t*cp1x + 3*(1-t)*Math.pow(t, 2)*cp2x + Math.pow(t, 3)*p2.x;
-        const by = Math.pow(1-t, 3)*p1.y + 3*Math.pow(1-t, 2)*t*cp1y + 3*(1-t)*Math.pow(t, 2)*cp2y + Math.pow(t, 3)*p2.y;
-
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(bx, by, 3 / camera.zoom, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = pt.color;
-        ctx.beginPath();
-        ctx.arc(bx, by, 1.8 / camera.zoom, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-
-    function drawParcels() {
-      parcels.forEach(p => {
-        const isSelected = selectedParcelIds.has(p.id);
-
-        // Highlight ring if selected
-        if (isSelected) {
-          ctx.strokeStyle = activeTool === 'cache_select' ? '#fbbf24' : '#38bdf8';
-          ctx.lineWidth = 3 / camera.zoom;
-          ctx.strokeRect(p.x - 3, p.y - 3, p.width + 6, p.height + 6);
-        }
-
-        // Parcel body
-        ctx.fillStyle = p.color;
-        drawRoundedRect(ctx, p.x, p.y, p.width, p.height, 5);
-
-        // Cache badge
-        if (p.isCached) {
-          ctx.strokeStyle = '#a855f7';
-          ctx.lineWidth = 1.5 / camera.zoom;
-          ctx.strokeRect(p.x, p.y, p.width, p.height);
-
-          ctx.fillStyle = '#ffffff';
-          ctx.font = `bold ${8.5 / camera.zoom}px sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.fillText("📦 CACHE", p.x + p.width/2, p.y + p.height - 6);
-        }
-
-        // Parcel name text
-        ctx.fillStyle = '#ffffff';
-        ctx.font = `bold ${9 / camera.zoom}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.fillText(p.name, p.x + p.width / 2, p.y + 14);
-
-        // Slot utilization count
-        let usedSlots = 0;
-        for (let k in p.buildings) usedSlots += p.buildings[k];
-        ctx.fillStyle = '#94a3b8';
-        ctx.font = `${7.5 / camera.zoom}px monospace`;
-        ctx.fillText(`${usedSlots}/${p.totalSlots} Slots`, p.x + p.width / 2, p.y + 26);
-
-        // Input Ports (Left side)
-        for (let i = 0; i < p.portsIn; i++) {
-          const pt = getParcelPortPosition(p, false, i);
-          ctx.fillStyle = '#0f172a';
-          ctx.beginPath();
-          ctx.arc(pt.x, pt.y, 4 / camera.zoom, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.strokeStyle = '#94a3b8';
-          ctx.lineWidth = 1.2 / camera.zoom;
-          ctx.stroke();
-        }
-
-        // Output Ports (Right side)
-        for (let i = 0; i < p.portsOut; i++) {
-          const pt = getParcelPortPosition(p, true, i);
-          ctx.fillStyle = '#38bdf8';
-          ctx.beginPath();
-          ctx.arc(pt.x, pt.y, 4 / camera.zoom, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 1.2 / camera.zoom;
-          ctx.stroke();
+      // 3. Symulacja węzłów Cache O(1)
+      state.cachedClusters.forEach(c => {
+        // Skondensowany bilans wejścia/wyjścia
+        for (let outKey in c.netOutput) {
+          state.parcels[0].resources[outKey] = (state.parcels[0].resources[outKey] || 0) + c.netOutput[outKey];
         }
       });
-    }
 
-    function drawRoundedRect(context, x, y, width, height, radius) {
-      context.beginPath();
-      context.moveTo(x + radius, y);
-      context.lineTo(x + width - radius, y);
-      context.quadraticCurveTo(x + width, y, x + width, y + radius);
-      context.lineTo(x + width, y + height - radius);
-      context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-      context.lineTo(x + radius, y + height);
-      context.quadraticCurveTo(x, y + height, x, y + height - radius);
-      context.lineTo(x, y + radius);
-      context.quadraticCurveTo(x, y, x + radius, y);
-      context.closePath();
-      context.fill();
-    }
-
-    // --- INTERACTION & EVENT LISTENERS ---
-    canvas.addEventListener('mousedown', (e) => {
-      const mouse = screenToWorld(e.clientX, e.clientY);
-
-      // Pan with middle mouse, space, or shift
-      if (e.button === 1 || e.shiftKey || e.altKey) {
-        camera.isPanning = true;
-        camera.startX = e.clientX - camera.x;
-        camera.startY = e.clientY - camera.y;
-        return;
-      }
-
-      if (e.button === 0) { // Left click
-        // 1. Check clicking on output ports to wire
-        for (let p of parcels) {
-          for (let i = 0; i < p.portsOut; i++) {
-            const pt = getParcelPortPosition(p, true, i);
-            const dist = Math.hypot(pt.x - mouse.x, pt.y - mouse.y);
-            if (dist < 8 / camera.zoom) {
-              wiringSource = { parcelId: p.id, portIdx: i, isOutput: true, currentX: e.clientX, currentY: e.clientY };
-              playAudio(440, 'sine', 0.05, 0.05);
-              return;
-            }
+      // 4. Transport między Parcelami (Kable Beziera)[cite: 1]
+      state.wires.forEach(w => {
+        const fromP = state.parcels.find(p => p.id === w.fromParcelId);
+        const toP = state.parcels.find(p => p.id === w.toParcelId);
+        if (fromP && toP && w.resourceKey) {
+          const avail = fromP.resources[w.resourceKey] || 0;
+          if (avail > 0 && fromP.outputFlags[w.resourceKey]) {
+            const transfer = Math.min(avail, 5); // 5 na sekundę
+            fromP.resources[w.resourceKey] -= transfer;
+            toP.resources[w.resourceKey] = (toP.resources[w.resourceKey] || 0) + transfer;
           }
         }
-
-        // 2. Check clicking on a Parcel
-        const hit = parcels.slice().reverse().find(p => 
-          mouse.x >= p.x && mouse.x <= p.x + p.width &&
-          mouse.y >= p.y && mouse.y <= p.y + p.height
-        );
-
-        if (hit) {
-          if (activeTool === 'cache_select') {
-            if (selectedParcelIds.has(hit.id)) selectedParcelIds.delete(hit.id);
-            else selectedParcelIds.add(hit.id);
-            return;
-          }
-
-          if (!e.ctrlKey && !selectedParcelIds.has(hit.id)) {
-            selectedParcelIds.clear();
-          }
-          selectedParcelIds.add(hit.id);
-          draggedParcel = hit;
-          dragOffset.x = mouse.x - hit.x;
-          dragOffset.y = mouse.y - hit.y;
-          return;
-        }
-
-        // 3. Click in empty space -> Marquee selection
-        if (activeTool === 'cache_select' || !e.ctrlKey) {
-          marquee.active = true;
-          marquee.startX = e.clientX;
-          marquee.startY = e.clientY;
-          marquee.currentX = e.clientX;
-          marquee.currentY = e.clientY;
-          if (activeTool !== 'cache_select') selectedParcelIds.clear();
-        }
-      }
-    });
-
-    window.addEventListener('mousemove', (e) => {
-      if (camera.isPanning) {
-        camera.x = e.clientX - camera.startX;
-        camera.y = e.clientY - camera.startY;
-        return;
-      }
-
-      if (wiringSource) {
-        wiringSource.currentX = e.clientX;
-        wiringSource.currentY = e.clientY;
-        return;
-      }
-
-      if (draggedParcel) {
-        const mouse = screenToWorld(e.clientX, e.clientY);
-        const dx = (mouse.x - dragOffset.x) - draggedParcel.x;
-        const dy = (mouse.y - dragOffset.y) - draggedParcel.y;
-        
-        selectedParcelIds.forEach(id => {
-          const p = parcels.find(item => item.id === id);
-          if (p) {
-            p.x += dx;
-            p.y += dy;
-          }
-        });
-        return;
-      }
-
-      if (marquee.active) {
-        marquee.currentX = e.clientX;
-        marquee.currentY = e.clientY;
-      }
-    });
-
-    window.addEventListener('mouseup', (e) => {
-      if (camera.isPanning) camera.isPanning = false;
-
-      // Complete wire connection
-      if (wiringSource) {
-        const mouse = screenToWorld(e.clientX, e.clientY);
-        for (let p of parcels) {
-          if (p.id === wiringSource.parcelId) continue;
-          for (let i = 0; i < p.portsIn; i++) {
-            const pt = getParcelPortPosition(p, false, i);
-            const dist = Math.hypot(pt.x - mouse.x, pt.y - mouse.y);
-            if (dist < 10 / camera.zoom) {
-              connectParcels(wiringSource.parcelId, wiringSource.portIdx, p.id, i);
-              break;
-            }
-          }
-        }
-        wiringSource = null;
-      }
-
-      draggedParcel = null;
-
-      // Finish marquee selection
-      if (marquee.active) {
-        marquee.active = false;
-        const p1 = screenToWorld(marquee.startX, marquee.startY);
-        const p2 = screenToWorld(marquee.currentX, marquee.currentY);
-        const rx = Math.min(p1.x, p2.x);
-        const ry = Math.min(p1.y, p2.y);
-        const rw = Math.abs(p1.x - p2.x);
-        const rh = Math.abs(p1.y - p2.y);
-
-        if (rw > 5 && rh > 5) {
-          parcels.forEach(p => {
-            if (p.x + p.width >= rx && p.x <= rx + rw && p.y + p.height >= ry && p.y <= ry + rh) {
-              selectedParcelIds.add(p.id);
-            }
-          });
-
-          if (activeTool === 'cache_select') {
-            openCacheBuilderModal();
-          }
-        }
-      }
-    });
-
-    // Double click to open the Authentic Parcel Modal
-    canvas.addEventListener('dblclick', (e) => {
-      const mouse = screenToWorld(e.clientX, e.clientY);
-      const hit = parcels.slice().reverse().find(p => 
-        mouse.x >= p.x && mouse.x <= p.x + p.width &&
-        mouse.y >= p.y && mouse.y <= p.y + p.height
-      );
-
-      if (hit) {
-        openParcelModal(hit);
-      }
-    });
-
-    // Zoom
-    canvas.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      const factor = e.deltaY < 0 ? 1.15 : 0.85;
-      const mouseX = e.clientX;
-      const mouseY = e.clientY;
-      const newZoom = Math.min(Math.max(0.2, camera.zoom * factor), 3.5);
-
-      camera.x = mouseX - (mouseX - camera.x) * (newZoom / camera.zoom);
-      camera.y = mouseY - (mouseY - camera.y) * (newZoom / camera.zoom);
-      camera.zoom = newZoom;
-    }, { passive: false });
-
-    // Delete key
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (!document.getElementById('parcel-modal').classList.contains('hidden')) return;
-        if (selectedParcelIds.size > 0) {
-          parcels = parcels.filter(p => !selectedParcelIds.has(p.id));
-          wires = wires.filter(w => !selectedParcelIds.has(w.fromId) && !selectedParcelIds.has(w.toId));
-          selectedParcelIds.clear();
-          updateHudCounts();
-          showToast("Deleted selected parcels");
-        }
-      }
-    });
-
-    // --- BOTTOM HUD ACTIONS ---
-    function spawnParcel(type) {
-      const center = screenToWorld(window.innerWidth / 2, window.innerHeight / 2);
-      const jitterX = (Math.random() - 0.5) * 80;
-      const jitterY = (Math.random() - 0.5) * 80;
-      const newParcel = createParcelInstance(type, center.x + jitterX, center.y + jitterY);
-      parcels.push(newParcel);
-      selectedParcelIds.clear();
-      selectedParcelIds.add(newParcel.id);
-      updateHudCounts();
-      playAudio(620, 'sine', 0.08, 0.08);
-      showToast(`Created new ${newParcel.name}`);
-    }
-
-    function updateHudCounts() {
-      let ext = 0, prod = 0, node = 0, wh = 0, cached = 0;
-      parcels.forEach(p => {
-        if (p.isCached) cached++;
-        if (p.type === 'extraction') ext++;
-        if (p.type === 'production') prod++;
-        if (p.type === 'node') node++;
-        if (p.type === 'warehouse') wh++;
       });
-      document.getElementById('hud-count-ext').innerText = ext;
-      document.getElementById('hud-count-prod').innerText = prod;
-      document.getElementById('hud-count-nodes').innerText = node;
-      document.getElementById('hud-count-wh').innerText = wh;
-      document.getElementById('top-parcels-stat').innerText = `Parcels: ${parcels.length} (Cached: ${cached})`;
+
+      // 5. Sprawdzenie celów gry
+      checkMilestones();
+
+      // Odświeżenie UI jeśli okno jest otwarte
+      if (activeParcelId) renderParcelModalContent();
+      document.getElementById('val-science').innerText = `${Math.floor(state.sciencePoints)} RP`;
     }
 
-    document.getElementById('btn-center-cam').addEventListener('click', () => {
-      camera.x = window.innerWidth / 2 - 320;
-      camera.y = window.innerHeight / 2 - 240;
-      camera.zoom = 1.0;
-    });
+    function checkMilestones() {
+      const cur = MILESTONES[state.currentMilestoneIndex];
+      if (!cur) return;
 
-    // --- AUTHENTIC PARCEL MODAL IMPLEMENTATION ---
-    function openParcelModal(parcel) {
-      currentOpenParcel = parcel;
-      document.getElementById('pm-title').innerText = parcel.name;
-      document.getElementById('pm-subtitle').innerText = `${parcel.type.toUpperCase()} PARCEL`;
-      document.getElementById('pm-parcel-id').innerText = parcel.id;
-      document.getElementById('pm-storage-val').innerText = parcel.storageCapacity.toLocaleString();
+      // Zsumuj stan magazynów
+      let totalStock = {};
+      state.parcels.forEach(p => {
+        for (let k in p.resources) totalStock[k] = (totalStock[k] || 0) + p.resources[k];
+      });
 
-      const conns = wires.filter(w => w.fromId === parcel.id || w.toId === parcel.id).length;
-      document.getElementById('pm-connections-val').innerText = `${conns} / 8`;
-
-      const freezeBtn = document.getElementById('pm-btn-freeze');
-      if (parcel.isCached) {
-        freezeBtn.innerText = "🔓 Unfreeze Parcel";
-        freezeBtn.classList.replace('bg-[#4f46e5]', 'bg-[#059669]');
-      } else {
-        freezeBtn.innerText = "📦 Cache This Parcel (O(1))";
-        freezeBtn.classList.replace('bg-[#059669]', 'bg-[#4f46e5]');
+      if (cur.check(totalStock)) {
+        alert(`🎉 UKOŃCZONO CEL: ${cur.text}!\nNagroda: ${cur.reward}`);
+        state.currentMilestoneIndex++;
+        if (MILESTONES[state.currentMilestoneIndex]) {
+          document.getElementById('current-milestone-text').innerText = `🎯 CEL: ${MILESTONES[state.currentMilestoneIndex].text}`;
+        } else {
+          document.getElementById('current-milestone-text').innerText = `🏆 Wszystkie cele osiągnięte! Fabryka ukończona.`;
+        }
       }
+    }
 
-      filterBuildingList();
-      updateOpenParcelModal();
-      document.getElementById('parcel-modal').classList.remove('hidden');
+    // --- OBSŁUGA OKNA PARCELA (1:1 ZE SCREENEM 2) ---
+    function openParcelModal(parcelId) {
+      activeParcelId = parcelId;
+      const p = state.parcels.find(x => x.id === parcelId);
+      if (!p) return;
+
+      document.getElementById('pm-name').innerText = p.name;
+      document.getElementById('pm-type-label').innerText = `${p.type.charAt(0).toUpperCase() + p.type.slice(1)} Parcel`;
+      document.getElementById('pm-footer-id').innerText = p.id;
+
+      renderParcelModalContent();
+      renderBuildingCatalog();
+      document.getElementById('parcel-modal-backdrop').style.display = 'flex';
     }
 
     function closeParcelModal() {
-      document.getElementById('parcel-modal').classList.add('hidden');
-      currentOpenParcel = null;
+      document.getElementById('parcel-modal-backdrop').style.display = 'none';
+      activeParcelId = null;
     }
 
-    function renameParcelPrompt() {
-      if (!currentOpenParcel) return;
-      const newName = prompt("Rename Parcel:", currentOpenParcel.name);
-      if (newName && newName.trim()) {
-        currentOpenParcel.name = newName.trim();
-        document.getElementById('pm-title').innerText = currentOpenParcel.name;
-      }
-    }
+    function renderParcelModalContent() {
+      const p = state.parcels.find(x => x.id === activeParcelId);
+      if (!p) return;
 
-    function changeColorPrompt() {
-      if (!currentOpenParcel) return;
-      const colors = ['#0284c7', '#c2410c', '#7c3aed', '#10b981', '#e11d48', '#eab308', '#475569'];
-      const curIdx = colors.indexOf(currentOpenParcel.color);
-      currentOpenParcel.color = colors[(curIdx + 1) % colors.length];
-    }
+      // Sloty budynków
+      let usedSlots = Object.values(p.buildings).reduce((a,b)=>a+b, 0);
+      document.getElementById('pm-stat-slots').innerText = `${usedSlots} / ${p.maxSlots}`;
+      document.getElementById('pm-stat-storage').innerText = p.storageLimit.toLocaleString();
 
-    function deleteCurrentParcel() {
-      if (!currentOpenParcel) return;
-      const id = currentOpenParcel.id;
-      parcels = parcels.filter(p => p.id !== id);
-      wires = wires.filter(w => w.fromId !== id && w.toId !== id);
-      closeParcelModal();
-      updateHudCounts();
-      showToast("Parcel deleted");
-    }
-
-    function toggleParcelFreeze() {
-      if (!currentOpenParcel) return;
-      if (currentOpenParcel.isCached) {
-        currentOpenParcel.isCached = false;
-        currentOpenParcel.cacheData = null;
-        showToast(`Parcel ${currentOpenParcel.name} unfrozen!`);
-      } else {
-        // Compile current parcel rates into cache
-        let netIn = {};
-        let netOut = {};
-        let totalPwr = 0;
-
-        for (let bKey in currentOpenParcel.buildings) {
-          const count = currentOpenParcel.buildings[bKey];
-          const b = BUILDINGS[bKey];
-          if (!b || count <= 0) continue;
-          totalPwr += b.power * count;
-          for (let i in b.in) netIn[i] = (netIn[i] || 0) + b.in[i] * b.rate * count;
-          for (let o in b.out) netOut[o] = (netOut[o] || 0) + b.out[o] * b.rate * count;
-        }
-
-        // Simplify
-        for (let r in netOut) {
-          if (netIn[r]) {
-            const cancel = Math.min(netOut[r], netIn[r]);
-            netOut[r] -= cancel;
-            netIn[r] -= cancel;
-            if (netOut[r] <= 0.001) delete netOut[r];
-            if (netIn[r] <= 0.001) delete netIn[r];
-          }
-        }
-
-        currentOpenParcel.isCached = true;
-        currentOpenParcel.cacheData = {
-          netInputs: netIn,
-          netOutputs: netOut,
-          power: totalPwr
-        };
-        showToast(`Parcel ${currentOpenParcel.name} compiled to O(1) Cache!`);
-      }
-      openParcelModal(currentOpenParcel);
-    }
-
-    function updateOpenParcelModal() {
-      if (!currentOpenParcel) return;
-      const p = currentOpenParcel;
-
-      // Update building slots calculation
-      let usedSlots = 0;
-      for (let k in p.buildings) usedSlots += p.buildings[k];
-      const freeSlots = Math.max(0, p.totalSlots - usedSlots);
-      const extraConns = (freeSlots * 0.16).toFixed(1);
-
-      document.getElementById('pm-slots-val').innerText = `${usedSlots} / ${p.totalSlots}`;
-      document.getElementById('pm-slots-extra').innerText = `${freeSlots} Free → + ${extraConns} Extra Connections`;
-
-      // Update Resources inventory table (Left column)
-      const resContainer = document.getElementById('pm-resource-list');
-      const keys = Object.keys(RESOURCES);
-      
-      resContainer.innerHTML = keys.map(k => {
-        const meta = RESOURCES[k];
-        const qty = Math.floor(p.resources[k] || 0);
-        const rate = p.rates[k] || 0;
-        const rateStr = rate >= 0 ? `+${rate.toFixed(1)}` : `${rate.toFixed(1)}`;
-        const isOutputting = p.outputWhitelist[k] !== false;
-
-        return `
-          <div class="grid grid-cols-4 items-center py-1.5 px-1 hover:bg-[#2b2b2b]">
-            <div class="flex items-center gap-2">
-              <span>${meta.icon}</span>
-              <span class="text-white font-medium">${meta.name}</span>
-            </div>
-            <div class="text-right font-mono font-bold ${qty > 0 ? 'text-sky-300' : 'text-[#666]'}">${qty}</div>
-            <div class="text-right font-mono ${rate > 0 ? 'text-emerald-400' : rate < 0 ? 'text-red-400' : 'text-[#666]'}">${rateStr}/s</div>
-            <div class="text-right">
-              <input type="checkbox" ${isOutputting ? 'checked' : ''} onchange="toggleResourceOutput('${k}', this.checked)" class="accent-sky-500 rounded bg-[#333]">
-            </div>
-          </div>
-        `;
-      }).join('');
-
-      // Refresh building counts
-      for (let bKey in BUILDINGS) {
-        const el = document.getElementById(`pm-bqty-${bKey}`);
-        if (el) el.innerText = p.buildings[bKey] || 0;
-      }
-    }
-
-    function toggleResourceOutput(resKey, checked) {
-      if (!currentOpenParcel) return;
-      currentOpenParcel.outputWhitelist[resKey] = checked;
-    }
-
-    function filterBuildingList() {
-      if (!currentOpenParcel) return;
-      const query = (document.getElementById('pm-search').value || '').toLowerCase();
-      const container = document.getElementById('pm-building-list');
-      
+      // Lewa strona: Tabela zasobów
+      const tbody = document.getElementById('pm-resource-tbody');
       let html = '';
-      for (let bKey in BUILDINGS) {
-        const b = BUILDINGS[bKey];
-        if (query && !b.name.toLowerCase().includes(query)) continue;
-        const qty = currentOpenParcel.buildings[bKey] || 0;
+      for (let resKey in p.resources) {
+        const qty = Math.floor(p.resources[resKey]);
+        const isOutput = p.outputFlags[resKey] || false;
+        html += `
+          <tr>
+            <td style="color:#fff;">${resKey}</td>
+            <td>${qty}</td>
+            <td style="color:var(--text-cyan);">+1.0/s</td>
+            <td>
+              <input type="checkbox" ${isOutput ? 'checked' : ''} onchange="toggleResourceOutput('${resKey}', this.checked)">
+            </td>
+          </tr>
+        `;
+      }
+      tbody.innerHTML = html || '<tr><td colspan="4" style="color:#666;">Brak surowców w parceli</td></tr>';
+    }
+
+    function renderBuildingCatalog() {
+      const p = state.parcels.find(x => x.id === activeParcelId);
+      if (!p) return;
+
+      const container = document.getElementById('pm-buildings-container');
+      const search = document.getElementById('pm-building-search').value.toLowerCase();
+      let usedSlots = Object.values(p.buildings).reduce((a,b)=>a+b, 0);
+
+      let html = '';
+      for (let bKey in BUILDINGS_DB) {
+        const b = BUILDINGS_DB[bKey];
+        if (b.name.toLowerCase().indexOf(search) === -1) continue;
+
+        // Sprawdź czy technologia została odblokowana
+        if (b.techReq && (!RESEARCH_DB[b.techReq] || !RESEARCH_DB[b.techReq].unlocked)) continue;
+
+        // Sprawdź czy stać parcelę na budowę
+        let canAfford = true;
+        let costDesc = [];
+        for (let costRes in b.cost) {
+          costDesc.push(`${b.cost[costRes]} ${costRes}`);
+          if ((p.resources[costRes] || 0) < b.cost[costRes]) canAfford = false;
+        }
+
+        const count = p.buildings[bKey] || 0;
+        const disabled = (!canAfford || usedSlots >= p.maxSlots) ? 'disabled' : '';
 
         html += `
-          <div class="grid grid-cols-12 items-center py-2 px-1 hover:bg-[#2b2b2b]">
-            <div class="col-span-2 flex items-center gap-1">
-              <button onclick="changeBuildingSlot('${bKey}', 1)" class="if-btn-action px-2 py-0.5 rounded text-white text-xs font-bold leading-none">+</button>
-              <button onclick="changeBuildingSlot('${bKey}', -1)" class="if-btn-action px-2 py-0.5 rounded text-slate-400 text-xs font-bold leading-none">-</button>
-            </div>
-            <div id="pm-bqty-${bKey}" class="col-span-2 text-center font-mono font-bold text-white">${qty}</div>
-            <div class="col-span-8 flex items-center gap-2">
-              <span class="text-sm">${b.icon}</span>
-              <span class="text-white font-medium">${b.name}</span>
+          <div class="b-row">
+            <button class="b-action-btn" ${disabled} onclick="buyBuildingInParcel('${bKey}')">+</button>
+            <div style="font-weight:bold; width: 28px; text-align:center;">${count}</div>
+            <div class="b-name-block">
+              <span>${b.icon}</span>
+              <span>${b.name}</span>
+              <span class="b-cost-hint">(${costDesc.join(', ')})</span>
             </div>
           </div>
         `;
@@ -1436,289 +595,288 @@
       container.innerHTML = html;
     }
 
-    function changeBuildingSlot(buildingKey, delta) {
-      if (!currentOpenParcel) return;
-      const p = currentOpenParcel;
+    function buyBuildingInParcel(bKey) {
+      const p = state.parcels.find(x => x.id === activeParcelId);
+      const b = BUILDINGS_DB[bKey];
+      if (!p || !b) return;
 
-      let usedSlots = 0;
-      for (let k in p.buildings) usedSlots += p.buildings[k];
+      // Odejmij koszt z parceli[cite: 2]
+      for (let costRes in b.cost) {
+        p.resources[costRes] -= b.cost[costRes];
+      }
 
-      if (delta > 0 && usedSlots >= p.totalSlots) {
-        showToast("No free building slots available in this Parcel!");
+      p.buildings[bKey] = (p.buildings[bKey] || 0) + 1;
+      renderParcelModalContent();
+      renderBuildingCatalog();
+    }
+
+    function toggleResourceOutput(resKey, val) {
+      const p = state.parcels.find(x => x.id === activeParcelId);
+      if (p) p.outputFlags[resKey] = val;
+    }
+
+    function deleteCurrentParcel() {
+      if (!confirm("Czy na pewno chcesz usunąć tę parcelę?")) return;
+      state.parcels = state.parcels.filter(p => p.id !== activeParcelId);
+      state.wires = state.wires.filter(w => w.fromParcelId !== activeParcelId && w.toParcelId !== activeParcelId);
+      closeParcelModal();
+      updateStatsUI();
+    }
+
+    function renameCurrentParcel() {
+      const p = state.parcels.find(x => x.id === activeParcelId);
+      if (!p) return;
+      const n = prompt("Nowa nazwa:", p.name);
+      if (n) { p.name = n; document.getElementById('pm-name').innerText = n; }
+    }
+
+    // --- RESEARCH MODAL ---
+    function openResearchModal() {
+      const list = document.getElementById('research-list');
+      let html = '';
+      for (let tKey in RESEARCH_DB) {
+        const t = RESEARCH_DB[tKey];
+        html += `
+          <div class="tech-card ${t.unlocked ? 'unlocked' : ''}">
+            <div>
+              <div style="font-weight:bold; color:#fff;">${t.name}</div>
+              <div style="font-size:12px; color:#aaa; margin-top:4px;">${t.desc}</div>
+              <div style="font-size:11px; color:#ef4444; margin-top:2px;">Koszt: ${t.cost} RP</div>
+            </div>
+            <div>
+              ${t.unlocked 
+                ? '<span style="color:#22c55e; font-weight:bold;">ODBLOKOWANE</span>' 
+                : `<button class="hud-btn" onclick="unlockResearch('${tKey}')">Badaj</button>`}
+            </div>
+          </div>
+        `;
+      }
+      list.innerHTML = html;
+      document.getElementById('research-modal').style.display = 'flex';
+    }
+
+    function closeResearchModal() {
+      document.getElementById('research-modal').style.display = 'none';
+    }
+
+    function unlockResearch(tKey) {
+      const t = RESEARCH_DB[tKey];
+      if (state.sciencePoints >= t.cost) {
+        state.sciencePoints -= t.cost;
+        t.unlocked = true;
+        openResearchModal();
+        updateStatsUI();
+      } else {
+        alert("Brak wystarczającej liczby punktów nauki (RP)!");
+      }
+    }
+
+    // --- MECHANIZM CACHE SUB-FACTORY (KOMPRESJA GRAFU W O(1)) ---
+    function triggerCacheSelectionMode() {
+      if (!RESEARCH_DB.cache_engine.unlocked) {
+        alert("Musisz najpierw zbadać 'Architekturę Sub-Factory Cache' w panelu Badań!");
+        return;
+      }
+      isCacheSelectMode = true;
+      selectedForCache = [];
+      alert("Tryb Cache aktywny: Klikaj kolejne parcele lewym przyciskiem myszy, a na końcu kliknij ponownie przycisk Cache, aby je skompresować w jeden węzeł.");
+    }
+
+    function finalizeCacheCompression() {
+      if (selectedForCache.length < 2) {
+        alert("Wybierz co najmniej 2 parcele do kompresji w Cache.");
+        isCacheSelectMode = false;
         return;
       }
 
-      const current = p.buildings[buildingKey] || 0;
-      const updated = Math.max(0, current + delta);
-      if (updated === 0) delete p.buildings[buildingKey];
-      else p.buildings[buildingKey] = updated;
+      let netOut = {};
+      selectedForCache.forEach(p => {
+        for (let bKey in p.buildings) {
+          const b = BUILDINGS_DB[bKey];
+          const cnt = p.buildings[bKey];
+          for (let o in b.out) netOut[o] = (netOut[o] || 0) + b.out[o] * cnt;
+        }
+      });
 
-      playAudio(delta > 0 ? 580 : 380, 'triangle', 0.04, 0.06);
-      updateOpenParcelModal();
+      // Usuń parcele z symulacji
+      state.parcels = state.parcels.filter(p => !selectedForCache.includes(p));
+      state.cachedClusters.push({
+        id: 'cache-' + Date.now(),
+        name: "Skompresowany Klaster O(1)",
+        netOutput: netOut
+      });
+
+      isCacheSelectMode = false;
+      selectedForCache = [];
+      alert("Kompresja zakończona pomyślnie! Usunięto jednostki fizyczne z grafu.");
+      updateStatsUI();
     }
 
-    // --- CACHE SUB-FACTORY (CONSOLIDATION OF MULTIPLE PARCELS) ---
-    function activateCacheSelectionTool() {
-      activeTool = 'cache_select';
-      selectedParcelIds.clear();
-      showToast("CACHE SUB-FACTORY: Drag marquee to select parcels to consolidate.");
+    // --- INTERAKCJA NA CANVASIE (DRAG, ZOOM, WIRES) ---
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
     }
 
-    function openCacheBuilderModal() {
-      if (selectedParcelIds.size < 2) {
-        showToast("Select at least 2 parcels to compile a Cache Sub-Factory.");
-        activeTool = 'select';
-        return;
-      }
+    canvas.addEventListener('mousedown', e => {
+      const worldX = (e.clientX - pan.x) / zoom;
+      const worldY = (e.clientY - pan.y) / zoom;
 
-      const cluster = parcels.filter(p => selectedParcelIds.has(p.id));
-      let totalPwr = 0;
-      let inMap = {};
-      let outMap = {};
+      // Wykryj kliknięcie w Parcel
+      const clicked = state.parcels.find(p => worldX >= p.x && worldX <= p.x + p.w && worldY >= p.y && worldY <= p.y + p.h);
 
-      cluster.forEach(p => {
-        if (p.isCached && p.cacheData) {
-          totalPwr += p.cacheData.power;
-          for (let k in p.cacheData.netInputs) inMap[k] = (inMap[k] || 0) + p.cacheData.netInputs[k];
-          for (let k in p.cacheData.netOutputs) outMap[k] = (outMap[k] || 0) + p.cacheData.netOutputs[k];
+      if (e.button === 0) { // LPM
+        if (isCacheSelectMode) {
+          if (clicked && !selectedForCache.includes(clicked)) selectedForCache.push(clicked);
+          return;
+        }
+
+        if (clicked) {
+          if (e.detail === 2) {
+            // Podwójny klik = Otwarcie Parcela[cite: 2]
+            openParcelModal(clicked.id);
+          } else {
+            // Pojedynczy klik = Rozpoczęcie podłączania kabla[cite: 1]
+            linkingParcel = clicked;
+          }
         } else {
-          for (let bKey in p.buildings) {
-            const count = p.buildings[bKey];
-            const b = BUILDINGS[bKey];
-            if (!b || count <= 0) continue;
-            totalPwr += b.power * count;
-            for (let i in b.in) inMap[i] = (inMap[i] || 0) + b.in[i] * b.rate * count;
-            for (let o in b.out) outMap[o] = (outMap[o] || 0) + b.out[o] * b.rate * count;
+          isDragging = true;
+          dragStart = { x: e.clientX - pan.x, y: e.clientY - pan.y };
+        }
+      }
+    });
+
+    canvas.addEventListener('mousemove', e => {
+      if (isDragging) {
+        pan.x = e.clientX - dragStart.x;
+        pan.y = e.clientY - dragStart.y;
+      }
+    });
+
+    canvas.addEventListener('mouseup', e => {
+      if (linkingParcel) {
+        const worldX = (e.clientX - pan.x) / zoom;
+        const worldY = (e.clientY - pan.y) / zoom;
+        const target = state.parcels.find(p => worldX >= p.x && worldX <= p.x + p.w && worldY >= p.y && worldY <= p.y + p.h);
+
+        if (target && target !== linkingParcel) {
+          // Stwórz połączenie logistyczne
+          const res = prompt("Jaki surowiec chcesz przesyłać? (np. iron_ore, iron_plate, coal):", "iron_ore");
+          if (res) {
+            state.wires.push({
+              id: 'wire-' + Date.now(),
+              fromParcelId: linkingParcel.id,
+              toParcelId: target.id,
+              resourceKey: res
+            });
           }
         }
+        linkingParcel = null;
+      }
+      isDragging = false;
+    });
+
+    canvas.addEventListener('wheel', e => {
+      const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+      zoom = Math.max(0.3, Math.min(2.5, zoom * zoomFactor));
+    });
+
+    // --- PĘTLA RENDEROWANIA (GRAFIKA 1:1 ZE ZDJĘCIA 1) ---
+    function renderLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
+      ctx.translate(pan.x, pan.y);
+      ctx.scale(zoom, zoom);
+
+      // Kable przesyłowe (Krzywe Beziera)[cite: 1]
+      state.wires.forEach(w => {
+        const p1 = state.parcels.find(p => p.id === w.fromParcelId);
+        const p2 = state.parcels.find(p => p.id === w.toParcelId);
+        if (!p1 || !p2) return;
+
+        const startX = p1.x + p1.w;
+        const startY = p1.y + p1.h / 2;
+        const endX = p2.x;
+        const endY = p2.y + p2.h / 2;
+        const cp1x = startX + Math.abs(endX - startX) * 0.5;
+        const cp2x = endX - Math.abs(endX - startX) * 0.5;
+
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.bezierCurveTo(cp1x, startY, cp2x, endY, endX, endY);
+        ctx.strokeStyle = w.resourceKey === 'iron_ore' ? '#38bdf8' : (w.resourceKey === 'coal' ? '#f59e0b' : '#22c55e');
+        ctx.lineWidth = 3;
+        ctx.stroke();
       });
 
-      // Net cancellation
-      for (let r in outMap) {
-        if (inMap[r]) {
-          const cancel = Math.min(outMap[r], inMap[r]);
-          outMap[r] -= cancel;
-          inMap[r] -= cancel;
-          if (outMap[r] <= 0.001) delete outMap[r];
-          if (inMap[r] <= 0.001) delete inMap[r];
-        }
+      // Rysowanie połączenia w trakcie przeciągania
+      if (linkingParcel) {
+        ctx.beginPath();
+        ctx.moveTo(linkingParcel.x + linkingParcel.w, linkingParcel.y + linkingParcel.h/2);
+        ctx.lineTo((canvas.width/2 - pan.x)/zoom, (canvas.height/2 - pan.y)/zoom);
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
       }
 
-      document.getElementById('cache-count').innerText = `${cluster.length} Parcels`;
-      document.getElementById('cache-inputs').innerText = Object.entries(inMap).map(([k,v]) => `${v.toFixed(1)}/s ${RESOURCES[k]?.name || k}`).join(', ') || 'Self-contained';
-      document.getElementById('cache-outputs').innerText = Object.entries(outMap).map(([k,v]) => `+${v.toFixed(1)}/s ${RESOURCES[k]?.name || k}`).join(', ') || 'Pure consumer';
-      document.getElementById('cache-power').innerText = `${totalPwr} MW`;
+      // Rysowanie Parceli (Zaokrąglone klocki ze screena 1)[cite: 1]
+      state.parcels.forEach(p => {
+        ctx.fillStyle = p.color;
+        if (selectedForCache.includes(p)) ctx.fillStyle = '#f59e0b';
 
-      window.tempClusterCompilation = { cluster, inMap, outMap, totalPwr };
-      document.getElementById('modal-cache-builder').classList.remove('hidden');
-    }
+        ctx.beginPath();
+        ctx.roundRect(p.x, p.y, p.w, p.h, 6);
+        ctx.fill();
 
-    function closeCacheBuilder() {
-      document.getElementById('modal-cache-builder').classList.add('hidden');
-      activeTool = 'select';
-      window.tempClusterCompilation = null;
-    }
+        ctx.strokeStyle = '#1e1e1e';
+        ctx.lineWidth = 2;
+        ctx.stroke();
 
-    function commitSubFactoryCache() {
-      if (!window.tempClusterCompilation) return;
-      const data = window.tempClusterCompilation;
-      const modName = document.getElementById('cache-mod-name').value || "Sub-Factory Cache";
-
-      // Compute geometric average coordinates
-      let avgX = 0, avgY = 0;
-      data.cluster.forEach(p => { avgX += p.x; avgY += p.y; });
-      avgX /= data.cluster.length;
-      avgY /= data.cluster.length;
-
-      const clusterIds = new Set(data.cluster.map(p => p.id));
-
-      // Re-route external wires
-      const externalWires = [];
-      wires.forEach(w => {
-        const fromIn = clusterIds.has(w.fromId);
-        const toIn = clusterIds.has(w.toId);
-        if (!fromIn && toIn) externalWires.push({ type: 'in', wire: w });
-        if (fromIn && !toIn) externalWires.push({ type: 'out', wire: w });
+        // Oznaczenie typu na klocku
+        ctx.fillStyle = '#fff';
+        ctx.font = '10px monospace';
+        ctx.fillText(p.type[0].toUpperCase(), p.x + 16, p.y + 24);
       });
 
-      // Remove internal parcels & wires
-      parcels = parcels.filter(p => !clusterIds.has(p.id));
-      wires = wires.filter(w => !clusterIds.has(w.fromId) && !clusterIds.has(w.toId));
-
-      // Create new consolidated Cached Parcel
-      const cachedParcel = createParcelInstance('cache_block', avgX, avgY, modName, {
-        netInputs: data.inMap,
-        netOutputs: data.outMap,
-        power: data.totalPwr,
-        originalParcelsCount: data.cluster.length
-      });
-      parcels.push(cachedParcel);
-
-      // Re-attach external wires
-      externalWires.forEach(item => {
-        if (item.type === 'in') {
-          connectParcels(item.wire.fromId, item.wire.fromPort, cachedParcel.id, 0);
-        } else {
-          connectParcels(cachedParcel.id, 0, item.wire.toId, item.wire.toPort);
-        }
-      });
-
-      playAudio(523, 'sine', 0.2, 0.15);
-      setTimeout(() => playAudio(1046, 'triangle', 0.25, 0.12), 120);
-
-      closeCacheBuilder();
-      selectedParcelIds.clear();
-      updateHudCounts();
-      showToast(`Consolidated ${data.cluster.length} Parcels into O(1) Cache '${modName}'!`);
+      ctx.restore();
+      requestAnimationFrame(renderLoop);
     }
 
-    // --- CLOUD GITHUB GIST & LOCAL STORAGE ---
-    function openCloudModal() {
-      document.getElementById('gh-token').value = localStorage.getItem('if_gh_token') || '';
-      document.getElementById('gh-gist-id').value = localStorage.getItem('if_gh_gist_id') || '';
-      document.getElementById('modal-cloud').classList.remove('hidden');
-    }
-    function closeCloudModal() {
-      document.getElementById('modal-cloud').classList.add('hidden');
-    }
-
-    function getSaveJSONPayload() {
-      return {
-        timestamp: Date.now(),
-        globalResearchPoints,
-        parcelCounter,
-        parcels,
-        wires,
-        camera: { x: camera.x, y: camera.y, zoom: camera.zoom }
-      };
+    function updateStatsUI() {
+      const counts = { extraction: 0, production: 0, node: 0, warehouse: 0 };
+      state.parcels.forEach(p => { if (counts[p.type] !== undefined) counts[p.type]++; });
+      document.getElementById('cnt-ext').innerText = counts.extraction;
+      document.getElementById('cnt-prod').innerText = counts.production;
+      document.getElementById('cnt-node').innerText = counts.node;
+      document.getElementById('cnt-ware').innerText = counts.warehouse;
+      document.getElementById('val-parcels-count').innerText = state.parcels.length;
     }
 
-    function applySavePayload(data) {
-      if (!data || !data.parcels) return;
-      parcels = data.parcels;
-      wires = data.wires;
-      globalResearchPoints = data.globalResearchPoints || 0;
-      parcelCounter = data.parcelCounter || parcels.length + 100;
-      if (data.camera) {
-        camera.x = data.camera.x;
-        camera.y = data.camera.y;
-        camera.zoom = data.camera.zoom;
-      }
-      updateHudCounts();
-      showToast("Game state loaded successfully!");
-    }
-
-    function copySaveJSON() {
-      const json = JSON.stringify(getSaveJSONPayload());
-      const area = document.createElement('textarea');
-      document.body.appendChild(area);
-      area.value = json;
-      area.select();
-      document.execCommand('copy');
-      document.body.removeChild(area);
-      showToast("Save JSON copied to clipboard!");
-    }
-
-    function importSaveJSONPrompt() {
-      const str = prompt("Paste Save JSON string:");
-      if (str) {
-        try {
-          const parsed = JSON.parse(str);
-          applySavePayload(parsed);
-          closeCloudModal();
-        } catch (e) {
-          showToast("Invalid JSON save format.");
-        }
-      }
-    }
-
-    async function saveToGistCloud() {
-      const token = document.getElementById('gh-token').value.trim();
-      const gistId = document.getElementById('gh-gist-id').value.trim();
-      if (!token) {
-        showToast("GitHub Personal Access Token required!");
-        return;
-      }
-      localStorage.setItem('if_gh_token', token);
+    // --- CHMURA GITHUB GIST SAVE ---
+    async function saveToGitHubGist() {
+      const pat = prompt("Wpisz GitHub Personal Access Token (PAT):");
+      if (!pat) return;
+      const gistId = prompt("Wpisz ID Gista (pozostaw puste, by utworzyć nowy):");
 
       const payload = {
         description: "Incremental Factory Cloud Save",
         public: false,
-        files: {
-          "incremental_factory_save.json": {
-            content: JSON.stringify(getSaveJSONPayload(), null, 2)
-          }
-        }
+        files: { "factory_save.json": { content: JSON.stringify(state, null, 2) } }
       };
 
       const url = gistId ? `https://api.github.com/gists/${gistId}` : `https://api.github.com/gists`;
-      const method = gistId ? 'PATCH' : 'POST';
-
-      try {
-        showToast("Syncing with GitHub Gist...");
-        const res = await fetch(url, {
-          method,
-          headers: { "Authorization": `token ${token}`, "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-        const d = await res.json();
-        if (d.id) {
-          localStorage.setItem('if_gh_gist_id', d.id);
-          document.getElementById('gh-gist-id').value = d.id;
-          showToast(`Saved to Cloud! Gist ID: ${d.id}`);
-          playAudio(880, 'sine', 0.2, 0.15);
-        } else {
-          showToast("GitHub Gist Error: " + (d.message || "Unauthorized"));
-        }
-      } catch (err) {
-        showToast("GitHub Connection Error: " + err.message);
-      }
+      const res = await fetch(url, {
+        method: gistId ? 'PATCH' : 'POST',
+        headers: { "Authorization": `token ${pat}`, "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const d = await res.json();
+      if (d.id) alert("Zapisano pomyślnie w GitHub Gist! ID: " + d.id);
     }
 
-    async function loadFromGistCloud() {
-      const token = document.getElementById('gh-token').value.trim();
-      const gistId = document.getElementById('gh-gist-id').value.trim();
-      if (!gistId) {
-        showToast("Provide a valid Gist ID to load.");
-        return;
-      }
-      try {
-        showToast("Downloading from GitHub Gist...");
-        const res = await fetch(`https://api.github.com/gists/${gistId}`, {
-          headers: token ? { "Authorization": `token ${token}` } : {}
-        });
-        const d = await res.json();
-        const content = d.files["incremental_factory_save.json"]?.content;
-        if (content) {
-          applySavePayload(JSON.parse(content));
-          closeCloudModal();
-        } else {
-          showToast("Gist file 'incremental_factory_save.json' not found.");
-        }
-      } catch (err) {
-        showToast("Gist download error: " + err.message);
-      }
-    }
-
-    // Auto-save to LocalStorage every 15s
-    setInterval(() => {
-      localStorage.setItem('if_local_save', JSON.stringify(getSaveJSONPayload()));
-    }, 15000);
-
-    // Initialization on load
-    window.addEventListener('load', () => {
-      const local = localStorage.getItem('if_local_save');
-      if (local) {
-        try {
-          applySavePayload(JSON.parse(local));
-        } catch (e) {
-          initializeStarterGame();
-        }
-      } else {
-        initializeStarterGame();
-      }
-      renderCanvas();
-    });
+    window.onload = initGame;
   </script>
 </body>
 </html>
